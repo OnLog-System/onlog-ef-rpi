@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  # 1. MQTT Logger (MQTT → SQLite)
+  mqtt-logger:
+    build: ./logger
+    container_name: mqtt-logger
+    restart: unless-stopped
+    volumes:
+      - /mnt/nvme/infra-data:/data   # SSD 경로 마운트 (수정 가능)
+    environment:
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_TOPIC=application/+/device/+/event/#
+      - DB_PATH=/data/sensor_logs.db
+    networks:
+      - chirpstack_net
+
+  # 2. Node Exporter (시스템 메트릭)
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    command:
+      - --path.rootfs=/
+
+  # 3. cAdvisor (컨테이너 메트릭)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
+networks:
+  chirpstack_net:
+    external: true
+    name: chirpstack-docker_default   # 기존 ChirpStack 네트워크 재사용
