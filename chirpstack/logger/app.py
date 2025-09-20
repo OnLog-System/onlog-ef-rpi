@@ -29,6 +29,6 @@ def on_message(client, userdata, msg):
 client = mqtt.Client()
 client.on_message = on_message
 client.connect(MQTT_HOST, MQTT_PORT, 60)
-client.subscribe(MQTT_TOPIC, qos=1)
+client.subscribe(MQTT_TOPIC, qos=0)
 print(f"📡 Subscribed to {MQTT_TOPIC} at {MQTT_HOST}:{MQTT_PORT}")
 client.loop_forever()
