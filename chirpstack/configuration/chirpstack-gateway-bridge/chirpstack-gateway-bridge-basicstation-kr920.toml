@@ -10,6 +10,7 @@ password=""
 event_topic_template="kr920/gateway/{{ .GatewayID }}/event/{{ .EventType }}"
 state_topic_template="kr920/gateway/{{ .GatewayID }}/state/{{ .StateType }}"
 command_topic_template="kr920/gateway/{{ .GatewayID }}/command/#"
+qos=1
 
 [backend]
 type="basic_station"
