@@ -93,6 +93,22 @@ services:
       - MQTT_PORT=1883
       - MQTT_TOPIC=application/#
       - DB_PATH=/data/sensor_logs.db
+      - SYNC_CHECK_INTERVAL=300  # 5분마다 동기화 체크
+      - MESSAGE_BALANCE_THRESHOLD=0.1  # 10% 임계값
+    volumes:
+      - /mnt/nvme/infra/sqlite:/data
+
+  # 2. Sync Dashboard (웹 기반 동기화 모니터링)
+  sync-dashboard:
+    build: ./logger
+    container_name: sync-dashboard
+    restart: unless-stopped
+    command: python dashboard.py
+    ports:
+      - "8082:8082"
+    environment:
+      - DB_PATH=/data/sensor_logs.db
+      - DASHBOARD_PORT=8082
     volumes:
       - /mnt/nvme/infra/sqlite:/data
 

@@ -11,6 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 앱 코드 복사
 COPY app.py .
+COPY sync_monitor.py .
+COPY dashboard.py .
 
 # 로그 전용 user 생성 (root 아님)
 RUN adduser --disabled-password --gecos "" logger

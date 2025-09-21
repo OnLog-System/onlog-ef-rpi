@@ -78,16 +78,30 @@ onlog-edangfood-rpi/
 | Redis | 6379 | Session storage |
 | Mosquitto | 1883 | MQTT Broker |
 | Node Exporter | 9100 | System metrics |
+| Sync Dashboard | 8082 | Sensor message synchronization monitoring |
 
 ## 📊 Monitoring
 
 Access monitoring dashboards:
 - **ChirpStack UI**: `http://raspberry-pi-ip:8080`
 - **Node Exporter Metrics**: `http://raspberry-pi-ip:9100/metrics`
+- **Sensor Sync Monitor**: `http://raspberry-pi-ip:8082`
 
 Default ChirpStack credentials:
 - Username: `admin`
 - Password: `admin`
+
+### 🔄 Sensor Synchronization Monitoring
+
+The system now includes advanced sensor message synchronization monitoring:
+
+- **Real-time tracking**: Monitor message counts per device
+- **Imbalance detection**: Automatically detect when devices send unequal message counts
+- **Web dashboard**: Visual monitoring at port 8082
+- **Event logging**: Track synchronization events and issues
+- **QoS optimization**: Enhanced MQTT settings for reliable message delivery
+
+For detailed information, see [Sensor Sync Monitoring Guide](chirpstack/logger/README.md).
 
 ## 🔌 Hardware Setup
 
