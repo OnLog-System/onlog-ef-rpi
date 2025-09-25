@@ -93,8 +93,11 @@ services:
       - MQTT_PORT=1883
       - MQTT_TOPIC=application/#
       - DB_PATH=/data/sensor_logs.db
+      - QOS_LEVEL=1
+      - BALANCE_CHECK_INTERVAL=300
     volumes:
       - /mnt/nvme/infra/sqlite:/data
+      - ./logger/sync_config.conf:/app/sync_config.conf:ro
 
   # 2. Node Exporter (시스템 메트릭)
   node-exporter:
