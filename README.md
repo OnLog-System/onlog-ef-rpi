@@ -84,10 +84,44 @@ onlog-edangfood-rpi/
 Access monitoring dashboards:
 - **ChirpStack UI**: `http://raspberry-pi-ip:8080`
 - **Node Exporter Metrics**: `http://raspberry-pi-ip:9100/metrics`
+- **Device Synchronization Dashboard**: `./chirpstack/scripts/monitor.sh dashboard`
 
 Default ChirpStack credentials:
 - Username: `admin`
 - Password: `admin`
+
+### 🔄 Sensor Message Synchronization
+
+The system now includes advanced sensor message synchronization features:
+
+**Features:**
+- **Uniform Message Intervals**: Ensures all sensors send messages at consistent intervals
+- **Real-time Balance Monitoring**: Detects devices sending too many or too few messages
+- **Auto-correction System**: Provides specific recommendations for problematic devices
+- **Enhanced Reliability**: Uses MQTT QoS 1 for acknowledged message delivery
+
+**Quick Start:**
+```bash
+# Setup synchronization features
+./chirpstack/scripts/setup.sh install
+
+# Monitor device balance
+./chirpstack/scripts/monitor.sh dashboard
+
+# Check current balance status
+./chirpstack/scripts/monitor.sh balance
+
+# Run auto-correction analysis
+./chirpstack/scripts/monitor.sh correct
+```
+
+**Configuration:**
+Edit `chirpstack/logger/sync_config.conf` to customize:
+- Expected message intervals (default: 60 seconds)
+- Balance check frequency (default: 5 minutes)
+- QoS levels and timing tolerances
+
+For detailed documentation, see: `chirpstack/logger/README.md`
 
 ## 🔌 Hardware Setup
 
@@ -118,6 +152,41 @@ sudo raspi-config
 docker ps
 # Check logs
 docker-compose logs postgresql
+```
+
+**Sensor message synchronization issues**
+```bash
+# Check device message balance
+./chirpstack/scripts/monitor.sh balance
+
+# View detailed device status
+./chirpstack/scripts/monitor.sh dashboard
+
+# Check logger service status
+./chirpstack/scripts/monitor.sh status
+
+# View recent logger activity
+./chirpstack/scripts/monitor.sh logs
+```
+
+**MQTT message delivery problems**
+```bash
+# Check MQTT broker logs
+docker logs mosquitto
+
+# Verify MQTT logger connectivity
+docker exec mqtt-logger python -c "
+import paho.mqtt.client as mqtt
+c = mqtt.Client()
+c.connect('mosquitto', 1883, 60)
+print('✅ MQTT connection successful')
+"
+
+# Check QoS configuration
+docker exec mqtt-logger python -c "
+import os
+print(f'QoS Level: {os.getenv(\"QOS_LEVEL\", \"1\")}')
+"
 ```
 
 ## 📈 Performance Optimization
