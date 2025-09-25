@@ -9,8 +9,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 앱 코드 복사
+# 앱 코드 및 스크립트 복사
 COPY app.py .
+COPY monitor_dashboard.py .
+COPY auto_corrector.py .
+COPY sync_config.conf .
+
+# 실행 권한 부여
+RUN chmod +x monitor_dashboard.py auto_corrector.py
 
 # 로그 전용 user 생성 (root 아님)
 RUN adduser --disabled-password --gecos "" logger
