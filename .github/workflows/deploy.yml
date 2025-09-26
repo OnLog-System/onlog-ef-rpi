@@ -1,0 +1,41 @@
+name: Deploy to RPi
+
+on:
+  push:
+    branches:
+      - main   # main 브랜치에 push될 때 실행
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 리포 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. RPi 접속해서 배포 스크립트 실행
+      - name: Deploy to RPi via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.RPI_HOST }}
+          username: ${{ secrets.RPI_USER }}
+          password: ${{ secrets.RPI_PASSWORD }}
+          script: |
+            set -e
+            echo "=== 배포 시작 ==="
+            cd ~/onlog-ef-rpi
+
+            # 최신 코드 가져오기
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "=== Docker 이미지 Pull ==="
+            docker-compose -f chirpstack/docker-compose.yml pull
+            docker-compose -f infra/docker-compose.yml pull
+
+            echo "=== 서비스 재시작 (변경만 반영) ==="
+            docker-compose -f chirpstack/docker-compose.yml up -d --build
+            docker-compose -f infra/docker-compose.yml up -d --build
+
+            echo "=== 배포 완료 ==="
