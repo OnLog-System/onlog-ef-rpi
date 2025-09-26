@@ -21,25 +21,21 @@ jobs:
           host: ${{ secrets.RPI_HOST }}
           username: ${{ secrets.RPI_USER }}
           password: ${{ secrets.RPI_PASSWORD }}
-            
-            docker-compose -f chirpstack/docker-compose.yml down || true
-            docker-compose -f infra/docker-compose.yml down || true
-            docker-compose -f chirpstack/docker-compose.yml up -d
-            docker-compose -f infra/docker-compose.yml up -d
-          
           script: |
             set -e
+            echo "=== 배포 시작 ==="
             cd ~/onlog-ef-rpi
+
+            # 최신 코드 가져오기
             git fetch origin main
             git reset --hard origin/main
 
-            # 최신 이미지 가져오기
+            echo "=== Docker 이미지 Pull ==="
             docker-compose -f chirpstack/docker-compose.yml pull
             docker-compose -f infra/docker-compose.yml pull
 
-            # 필요한 서비스 빌드
-            docker-compose -f infra/docker-compose.yml build mqtt-logger
-
-            # 변경된 부분만 반영
+            echo "=== 서비스 재시작 (변경만 반영) ==="
             docker-compose -f chirpstack/docker-compose.yml up -d --build
             docker-compose -f infra/docker-compose.yml up -d --build
+
+            echo "=== 배포 완료 ==="
