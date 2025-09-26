@@ -83,7 +83,7 @@ services:
   # ===== Infra Layer =====
   # 1. MQTT Logger (MQTT → SQLite)
   mqtt-logger:
-    build: ./logger
+    image: onlogpipeline/onlog-ef-rpi:stable
     container_name: mqtt-logger
     restart: unless-stopped
     depends_on:

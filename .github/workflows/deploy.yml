@@ -1,39 +1,27 @@
-name: Deploy to RPi
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
-      - main   # main 브랜치에 push될 때 실행
+      - main
 
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
-
     steps:
-      # 1. 리포 체크아웃
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. RPi 접속해서 배포 스크립트 실행
-      - name: Deploy to RPi via SSH
-        uses: appleboy/ssh-action@v0.1.10
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
         with:
-          host: ${{ secrets.RPI_HOST }}
-          username: ${{ secrets.RPI_USER }}
-          key: ${{ secrets.RPI_SSH_KEY }}
-          script: |
-            set -e
-            echo "=== 배포 시작 ==="
-            cd ~/onlog-ef-rpi
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-            # 최신 코드 가져오기
-            git fetch origin main
-            git reset --hard origin/main
-
-            echo "=== Docker 이미지 Pull ==="
-            docker-compose -f services/docker-compose.yml pull
-
-            echo "=== 서비스 재시작 (변경만 반영) ==="
-            docker-compose -f services/docker-compose.yml up -d --build
-
-            echo "=== 배포 완료 ==="
+      - name: Build and push image
+        run: |
+          # 1. mqtt-logger 서비스
+          cd services/logger
+          docker build -t onlogpipeline/onlog-ef-rpi:stable .
+          docker push onlogpipeline/onlog-ef-rpi:stable
+          cd ../..
