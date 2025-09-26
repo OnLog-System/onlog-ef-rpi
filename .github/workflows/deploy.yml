@@ -21,12 +21,25 @@ jobs:
           host: ${{ secrets.RPI_HOST }}
           username: ${{ secrets.RPI_USER }}
           password: ${{ secrets.RPI_PASSWORD }}
-          script: |
-            set -e
-            cd ~/onlog-edangfood-rpi
-            git fetch origin main
-            git reset --hard origin/main
+            
             docker-compose -f chirpstack/docker-compose.yml down || true
             docker-compose -f infra/docker-compose.yml down || true
             docker-compose -f chirpstack/docker-compose.yml up -d
             docker-compose -f infra/docker-compose.yml up -d
+          
+          script: |
+            set -e
+            cd ~/onlog-ef-rpi
+            git fetch origin main
+            git reset --hard origin/main
+
+            # 최신 이미지 가져오기
+            docker-compose -f chirpstack/docker-compose.yml pull
+            docker-compose -f infra/docker-compose.yml pull
+
+            # 필요한 서비스 빌드
+            docker-compose -f infra/docker-compose.yml build mqtt-logger
+
+            # 변경된 부분만 반영
+            docker-compose -f chirpstack/docker-compose.yml up -d --build
+            docker-compose -f infra/docker-compose.yml up -d --build
