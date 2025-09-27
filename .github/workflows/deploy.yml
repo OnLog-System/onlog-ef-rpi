@@ -19,7 +19,7 @@ jobs:
         run: |
             set -e
             echo "=== 배포 시작 ==="
-            cd ~/onlog-ef-rpi
+            cd "$GITHUB_WORKSPACE"
 
             # 최신 코드 가져오기
             git fetch origin main
