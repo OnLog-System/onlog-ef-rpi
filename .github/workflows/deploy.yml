@@ -26,9 +26,9 @@ jobs:
             git reset --hard origin/main
 
             echo "=== Docker 이미지 Pull ==="
-            docker-compose -f services/docker-compose.yml pull
+            docker compose -f services/docker-compose.yml pull
 
-            echo "=== 서비스 재시작 (변경만 반영) ==="
-            docker-compose -f services/docker-compose.yml up -d --build
+            echo "=== 서비스 재시작 ==="
+            docker compose -f services/docker-compose.yml up -d --build
 
             echo "=== 배포 완료 ==="
