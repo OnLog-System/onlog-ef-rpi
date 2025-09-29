@@ -69,13 +69,21 @@ onlog-edangfood-rpi/
 
 ## 🌐 Services
 
-| Service | Port | Description |
-|---------|------|-------------|
-| ChirpStack | 8080 | LoRaWAN Network Server Web UI |
-| PostgreSQL | 5432 | Database for ChirpStack |
-| Redis | 6379 | Session storage |
-| Mosquitto | 1883 | MQTT Broker |
-| Node Exporter | 9100 | System metrics |
+| Service                        | Port  | Description                                      |
+|--------------------------------|-------|--------------------------------------------------|
+| ChirpStack                     | 8080  | LoRaWAN Network Server Web UI                    |
+| ChirpStack REST API            | 8090  | REST API for ChirpStack                          |
+| ChirpStack Gateway Bridge      | 3001  | Gateway <-> Network Server bridge (BasicStation) |
+| PostgreSQL                     | 5432  | Database for ChirpStack                          |
+| Redis                          | 6379  | Session storage                                  |
+| Mosquitto                      | 1883  | MQTT Broker                                      |
+| Node Exporter                  | 9100* | System metrics                                   |
+| cAdvisor                       | 8081  | Container metrics (for Prometheus/Grafana)       |
+| Node-RED (mynodered container) | 1880  | Low-code flow-based programming tool             |
+| MQTT Logger                    | —     | Custom Python-based MQTT → SQLite logger         |
+
+\* Node Exporter는 기본 포트가 `9100`이지만 현재 compose 설정에는 호스트 포트 매핑이 없음.  
+
 
 ## 📊 Monitoring
 

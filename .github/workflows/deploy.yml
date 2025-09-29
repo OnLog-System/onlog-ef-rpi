@@ -25,6 +25,9 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
+            echo "=== 기존 컨테이너 종료 ==="
+            docker compose -f services/docker-compose.yml down --timeout 30 || true
+
             echo "=== Docker 이미지 Pull ==="
             docker compose -f services/docker-compose.yml pull
 
