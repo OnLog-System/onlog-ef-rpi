@@ -119,7 +119,7 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
 
-# 4. Node-RED ()
+# 4. Node-RED (센서데이터 대시보드)
   nodered:
     image: nodered/node-red
     container_name: mynodered
@@ -127,8 +127,8 @@ services:
     ports:
       - "1880:1880"
     volumes:
-      - test_node_red_data:/data
+      - /mnt/nvme/infra/nodered:/data
+
 volumes:
   postgresqldata:
   redisdata:
-  test_node_red_data:
