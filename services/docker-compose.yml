@@ -119,6 +119,16 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
 
+# 4. Node-RED ()
+  nodered:
+    image: nodered/node-red
+    container_name: mynodered
+    restart: unless-stopped
+    ports:
+      - "1880:1880"
+    volumes:
+      - test_node_red_data:/data
 volumes:
   postgresqldata:
   redisdata:
+  test_node_red_data:
