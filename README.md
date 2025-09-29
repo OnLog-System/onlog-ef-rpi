@@ -17,14 +17,12 @@ This project provides a complete LoRaWAN gateway solution for Raspberry Pi, desi
 
 ```
 onlog-edangfood-rpi/
-├── chirpstack/              # LoRaWAN Network Server
+├── services/              # LoRaWAN Network Server
 │   ├── docker-compose.yml   # ChirpStack services
 │   ├── configuration/       # Regional LoRa configurations
 │   └── logger/              # Data logging application
 ├── deployment-scripts/      # Deployment automation
 │   └── get-docker.sh       # Docker installation script
-├── infra/                   # Infrastructure services
-│   └── docker-compose.yml   # Supporting services
 ├── monitoring/              # System monitoring
 │   └── node_exporter       # Prometheus Node Exporter
 └── README.md
