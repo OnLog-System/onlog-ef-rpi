@@ -13,78 +13,49 @@ SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH")
 
 headers = {"Grpc-Metadata-Authorization": f"Bearer {API_KEY}"}
 
-# ------------------------------
-# API 함수
-# ------------------------------
-def get_gateway_metrics(start, end):
-    url = f"{API_BASE}/gateways/{GATEWAY_ID}/metrics?start={start}&end={end}"
-    r = requests.get(url, headers=HEADERS)
-    r.raise_for_status()
-    return r.json()
+DEVICES = [
+    ("a84041f3275da38b", "EF-LHT65N-01"),
+    ("a840419f755da38c", "EF-LHT65N-02"),
+    ("a84041949e5da381", "EF-LHT65N-03"),
+    ("a8404166815da382", "EF-LHT65N-04"),
+    ("a840412db25da383", "EF-LHT65N-05"),
+    ("a84041f6e55da385", "EF-LHT65N-06"),
+    ("a84041f65a5da384", "EF-LHT65N-07"),
+    ("a8404133545da38a", "EF-LHT65N-08"),
+    ("a84041bb5f5da389", "EF-LHT65N-09"),
+    ("a8404166bf5da388", "EF-LHT65N-10"),
+    ("a840419f4f5da386", "EF-LHT65N-11"),
+    ("a84041e0055da387", "EF-LHT65N-12"),
+]
 
-def get_devices(limit=50, offset=0):
-    url = f"{API_BASE}/devices?applicationId={APPLICATION_ID}&limit={limit}&offset={offset}"
-    r = requests.get(url, headers=HEADERS)
-    r.raise_for_status()
-    return r.json().get("result", [])
+def get_gateway_rx(start, end):
+    url = f"{API_BASE}/gateways/{GATEWAY_ID}/metrics?start={start}&end={end}&aggregation=HOUR"
+    r = requests.get(url, headers=HEADERS); r.raise_for_status()
+    data = r.json()["rxPackets"]["datasets"][0]["data"]
+    return sum(data)
 
-def get_device_metrics(dev_eui, start, end):
-    url = f"{API_BASE}/devices/{dev_eui}/metrics?start={start}&end={end}"
-    r = requests.get(url, headers=HEADERS)
-    r.raise_for_status()
-    return r.json()
+def get_device_rx(dev_eui, start, end):
+    url = f"{API_BASE}/devices/{dev_eui}/link-metrics?start={start}&end={end}&aggregation=HOUR"
+    r = requests.get(url, headers=HEADERS); r.raise_for_status()
+    datasets = r.json()["rxPackets"]["datasets"]
+    if datasets:
+        return sum(datasets[0]["data"])
+    return 0
 
-# ------------------------------
-# DB 함수
-# ------------------------------
-def get_db_count():
-    try:
-        conn = sqlite3.connect(SQLITE_DB)
-        cur = conn.cursor()
-        # ✅ 테이블 이름 확인 후 수정 필요
-        cur.execute("SELECT COUNT(*) FROM uplink;")
-        count = cur.fetchone()[0]
-        conn.close()
-        return count
-    except Exception as e:
-        print("SQLite 조회 실패:", e)
-        return None
-
-# ------------------------------
-# 실행
-# ------------------------------
 if __name__ == "__main__":
-    # 시간 범위 (오늘 6시간 기준 예시)
     end = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
     start = end - timedelta(hours=6)
-    start_str = start.isoformat() + "Z"
-    end_str = end.isoformat() + "Z"
+    start_str, end_str = start.isoformat()+"Z", end.isoformat()+"Z"
 
-    print("=== Gateway Metrics ===")
-    try:
-        gw = get_gateway_metrics(start_str, end_str)
-        print(gw)
-    except Exception as e:
-        print("Gateway metrics 조회 실패:", e)
+    gw_total = get_gateway_rx(start_str, end_str)
+    print(f"\n=== Gateway total uplinks: {gw_total}")
 
-    print("\n=== Device Metrics ===")
-    try:
-        devices = get_devices()
-        if not devices:
-            print("등록된 디바이스가 없습니다.")
-        for d in devices:
-            dev_eui = d.get("devEui")
-            name = d.get("name")
-            print(f"\nDevice {name} ({dev_eui}):")
-            try:
-                metrics = get_device_metrics(dev_eui, start_str, end_str)
-                print(metrics)
-            except Exception as e:
-                print(f"Device {dev_eui} metrics 조회 실패:", e)
-    except Exception as e:
-        print("Device 리스트 조회 실패:", e)
+    device_total = 0
+    for dev_eui, name in DEVICES:
+        count = get_device_rx(dev_eui, start_str, end_str)
+        device_total += count
+        print(f"{name} ({dev_eui}): {count}")
 
-    print("\n=== SQLite Row Count ===")
-    db_count = get_db_count()
-    if db_count is not None:
-        print(f"DB 저장 row 수: {db_count}")
+    print(f"\n=== Devices total uplinks: {device_total}")
+    diff = gw_total - device_total
+    print(f"Difference (gateway - devices) = {diff}")
