@@ -110,6 +110,7 @@ DB total uplinks: 10088
 Difference (Gateway - DB) = 825
 Difference (Devices API - DB) = 461
 ```
+![metrics_compare_ex](images/image.png)
 
 ---
 
