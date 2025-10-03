@@ -9,7 +9,7 @@ from datetime import datetime
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 SQLITE_PATH = os.getenv("DB_PATH", "/data/redis_metrics.db")
-EXPORT_INTERVAL = int(os.getenv("EXPORT_INTERVAL", 3600))  # 기본 1시간(3600초)
+EXPORT_INTERVAL = int(os.getenv("EXPORT_INTERVAL", 3600))  # 기본 1시간(3600s)
 
 def init_db():
     conn = sqlite3.connect(SQLITE_PATH)
