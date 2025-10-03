@@ -14,7 +14,7 @@ SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH")
 headers = {"Grpc-Metadata-Authorization": f"Bearer {API_KEY}"}
 
 # ------------------------------
-# 1. 게이트웨이 메트릭 조회
+# API 함수
 # ------------------------------
 def get_gateway_metrics(gateway_id):
     url = f"{API_BASE}/gateways/{gateway_id}/metrics"
@@ -22,9 +22,6 @@ def get_gateway_metrics(gateway_id):
     r.raise_for_status()
     return r.json()
 
-# ------------------------------
-# 2. 디바이스 리스트 + 메트릭 조회
-# ------------------------------
 def get_devices():
     url = f"{API_BASE}/devices"
     r = requests.get(url, headers=HEADERS)
@@ -38,31 +35,49 @@ def get_device_metrics(dev_eui):
     return r.json()
 
 # ------------------------------
-# 3. SQLite DB row count
+# DB 함수
 # ------------------------------
 def get_db_count():
-    conn = sqlite3.connect(SQLITE_DB)
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM uplink")   # uplink 테이블명 맞게 수정
-    count = cur.fetchone()[0]
-    conn.close()
-    return count
+    try:
+        conn = sqlite3.connect(SQLITE_DB)
+        cur = conn.cursor()
+        # ✅ 테이블 이름을 환경에 맞게 수정하세요 (uplink / logs / sensor_logs 등)
+        cur.execute("SELECT COUNT(*) FROM uplink;")
+        count = cur.fetchone()[0]
+        conn.close()
+        return count
+    except Exception as e:
+        print("SQLite 조회 실패:", e)
+        return None
 
 # ------------------------------
 # 실행
 # ------------------------------
 if __name__ == "__main__":
     print("=== Gateway Metrics ===")
-    gw_metrics = get_gateway_metrics(GATEWAY_ID)
-    print(gw_metrics)
+    try:
+        gw = get_gateway_metrics(GATEWAY_ID)
+        print(gw)
+    except Exception as e:
+        print("Gateway metrics 조회 실패:", e)
 
-    print("\n=== Devices ===")
-    devices = get_devices()
-    for d in devices:
-        dev_eui = d["devEui"]
-        print(f"\nDevice {dev_eui} metrics:")
-        dev_metrics = get_device_metrics(dev_eui)
-        print(dev_metrics)
+    print("\n=== Device Metrics ===")
+    try:
+        devices = get_devices()
+        if not devices:
+            print("등록된 디바이스가 없습니다.")
+        for d in devices:
+            dev_eui = d.get("devEui")
+            print(f"\nDevice {dev_eui}:")
+            try:
+                metrics = get_device_metrics(dev_eui)
+                print(metrics)
+            except Exception as e:
+                print(f"Device {dev_eui} metrics 조회 실패:", e)
+    except Exception as e:
+        print("Device 리스트 조회 실패:", e)
 
-    print("\n=== DB Row Count ===")
-    print("Rows in SQLite:", get_db_count())
+    print("\n=== SQLite Row Count ===")
+    db_count = get_db_count()
+    if db_count is not None:
+        print(f"DB 저장 row 수: {db_count}")
