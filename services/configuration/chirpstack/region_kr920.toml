@@ -100,18 +100,24 @@
 
     [[regions.gateway.channels]]
       frequency=922100000
+      min_dr=0
+      max_dr=5
       bandwidth=125000
       modulation="LORA"
       spreading_factors=[7, 8, 9, 10, 11, 12]
 
     [[regions.gateway.channels]]
       frequency=922300000
+      min_dr=0
+      max_dr=5
       bandwidth=125000
       modulation="LORA"
       spreading_factors=[7, 8, 9, 10, 11, 12]
 
     [[regions.gateway.channels]]
       frequency=922500000
+      min_dr=0
+      max_dr=5
       bandwidth=125000
       modulation="LORA"
       spreading_factors=[7, 8, 9, 10, 11, 12]
@@ -120,30 +126,40 @@
 
     [[regions.gateway.channels]]
       frequency=922700000
+      min_dr=0
+      max_dr=5
       bandwidth=125000
       modulation="LORA"
       spreading_factors=[7, 8, 9, 10, 11, 12]
 
     [[regions.gateway.channels]]
       frequency=922900000
+      min_dr=0
+      max_dr=5
       bandwidth=125000
       modulation="LORA"
       spreading_factors=[7, 8, 9, 10, 11, 12]
     
     [[regions.gateway.channels]]
       frequency=923100000
+      min_dr=0
+      max_dr=5
       bandwidth=125000
       modulation="LORA"
       spreading_factors=[7, 8, 9, 10, 11, 12]
     
     [[regions.gateway.channels]]
       frequency=923300000
+      min_dr=0
+      max_dr=5
       bandwidth=125000
       modulation="LORA"
       spreading_factors=[7, 8, 9, 10, 11, 12]
 
      [[regions.gateway.channels]]
       frequency=923900000
+      min_dr=0
+      max_dr=5
       bandwidth=125000
       modulation="LORA"
       spreading_factors=[7, 8, 9, 10, 11, 12] 
