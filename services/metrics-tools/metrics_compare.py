@@ -16,20 +16,20 @@ headers = {"Grpc-Metadata-Authorization": f"Bearer {API_KEY}"}
 # ------------------------------
 # API 함수
 # ------------------------------
-def get_gateway_metrics(gateway_id):
-    url = f"{API_BASE}/gateways/{gateway_id}/metrics"
+def get_gateway_metrics(start, end):
+    url = f"{API_BASE}/gateways/{GATEWAY_ID}/metrics?start={start}&end={end}"
     r = requests.get(url, headers=HEADERS)
     r.raise_for_status()
     return r.json()
 
-def get_devices():
-    url = f"{API_BASE}/devices"
+def get_devices(limit=50, offset=0):
+    url = f"{API_BASE}/devices?applicationId={APPLICATION_ID}&limit={limit}&offset={offset}"
     r = requests.get(url, headers=HEADERS)
     r.raise_for_status()
     return r.json().get("result", [])
 
-def get_device_metrics(dev_eui):
-    url = f"{API_BASE}/devices/{dev_eui}/metrics"
+def get_device_metrics(dev_eui, start, end):
+    url = f"{API_BASE}/devices/{dev_eui}/metrics?start={start}&end={end}"
     r = requests.get(url, headers=HEADERS)
     r.raise_for_status()
     return r.json()
@@ -41,7 +41,7 @@ def get_db_count():
     try:
         conn = sqlite3.connect(SQLITE_DB)
         cur = conn.cursor()
-        # ✅ 테이블 이름을 환경에 맞게 수정하세요 (uplink / logs / sensor_logs 등)
+        # ✅ 테이블 이름 확인 후 수정 필요
         cur.execute("SELECT COUNT(*) FROM uplink;")
         count = cur.fetchone()[0]
         conn.close()
@@ -54,9 +54,15 @@ def get_db_count():
 # 실행
 # ------------------------------
 if __name__ == "__main__":
+    # 시간 범위 (오늘 6시간 기준 예시)
+    end = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
+    start = end - timedelta(hours=6)
+    start_str = start.isoformat() + "Z"
+    end_str = end.isoformat() + "Z"
+
     print("=== Gateway Metrics ===")
     try:
-        gw = get_gateway_metrics(GATEWAY_ID)
+        gw = get_gateway_metrics(start_str, end_str)
         print(gw)
     except Exception as e:
         print("Gateway metrics 조회 실패:", e)
@@ -68,9 +74,10 @@ if __name__ == "__main__":
             print("등록된 디바이스가 없습니다.")
         for d in devices:
             dev_eui = d.get("devEui")
-            print(f"\nDevice {dev_eui}:")
+            name = d.get("name")
+            print(f"\nDevice {name} ({dev_eui}):")
             try:
-                metrics = get_device_metrics(dev_eui)
+                metrics = get_device_metrics(dev_eui, start_str, end_str)
                 print(metrics)
             except Exception as e:
                 print(f"Device {dev_eui} metrics 조회 실패:", e)
