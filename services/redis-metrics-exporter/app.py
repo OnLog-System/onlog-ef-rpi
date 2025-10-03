@@ -34,7 +34,10 @@ def parse_key(key):
     granularity = m.group(3)
     ts_raw = m.group(4)
 
-    ts = datetime.strptime(ts_raw, "%Y%m%d%H%M").isoformat()
+    try:
+        ts = datetime.strptime(ts_raw, "%Y%m%d%H%M").isoformat()
+    except ValueError:
+        return None
     return obj_type, obj_id, granularity, ts
 
 def export_metrics(r, conn):
