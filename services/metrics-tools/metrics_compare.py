@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 # -----------------------------
 # 환경 변수 로드
 # -----------------------------
-load_dotenv()
+load_dotenv("/home/ubuntu/.envs/onlog-ef-rpi.env")
 
 API_BASE = os.getenv("CHIRPSTACK_API_URL", "http://localhost:8090/api")
 API_KEY = os.getenv("CHIRPSTACK_API_KEY")
