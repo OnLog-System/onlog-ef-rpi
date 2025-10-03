@@ -13,7 +13,6 @@ SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH")
 
 headers = {"Grpc-Metadata-Authorization": f"Bearer {API_KEY}"}
 
-# EF-LHT65N 디바이스 목록
 DEVICES = [
     ("a84041f3275da38b", "EF-LHT65N-01"),
     ("a840419f755da38c", "EF-LHT65N-02"),
@@ -30,24 +29,21 @@ DEVICES = [
 ]
 
 # -----------------------------
-# REST API 함수
+# REST API
 # -----------------------------
 def get_gateway_rx(start, end):
     url = f"{API_BASE}/gateways/{GATEWAY_ID}/metrics?start={start}&end={end}&aggregation=HOUR"
     r = requests.get(url, headers=HEADERS); r.raise_for_status()
-    data = r.json()["rxPackets"]["datasets"][0]["data"]
-    return sum(data)
+    return sum(r.json()["rxPackets"]["datasets"][0]["data"])
 
 def get_device_rx(dev_eui, start, end):
     url = f"{API_BASE}/devices/{dev_eui}/link-metrics?start={start}&end={end}&aggregation=HOUR"
     r = requests.get(url, headers=HEADERS); r.raise_for_status()
     datasets = r.json()["rxPackets"]["datasets"]
-    if datasets:
-        return sum(datasets[0]["data"])
-    return 0
+    return sum(datasets[0]["data"]) if datasets else 0
 
 # -----------------------------
-# SQLite 함수
+# SQLite
 # -----------------------------
 def get_db_counts(start, end):
     conn = sqlite3.connect(SQLITE_DB)
@@ -64,7 +60,7 @@ def get_db_counts(start, end):
     return results
 
 # -----------------------------
-# 실행부
+# 실행
 # -----------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -75,10 +71,15 @@ if __name__ == "__main__":
     if args.start and args.end:
         start_str, end_str = args.start, args.end
     else:
-        # 기본: 최근 6시간
         end = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
         start = end - timedelta(hours=6)
         start_str, end_str = start.isoformat().replace("+00:00","Z"), end.isoformat().replace("+00:00","Z")
+
+    # SQLite용 포맷 변환
+    def to_sqlite_fmt(s: str):
+        return s.replace("T", " ").replace("Z", "")
+
+    db_start, db_end = to_sqlite_fmt(start_str), to_sqlite_fmt(end_str)
 
     print(f"\n=== Interval ===")
     print(f"UTC: {start_str} ~ {end_str}")
@@ -89,26 +90,25 @@ if __name__ == "__main__":
     gw_total = get_gateway_rx(start_str, end_str)
     print(f"\n=== Gateway total uplinks: {gw_total}")
 
-    # Device totals
+    # Device totals (API)
     device_total = 0
     print(f"\n=== Device uplinks (link-metrics API) ===")
-    device_counts = {}
+    api_counts = {}
     for dev_eui, name in DEVICES:
         count = get_device_rx(dev_eui, start_str, end_str)
+        api_counts[dev_eui] = count
         device_total += count
-        device_counts[dev_eui] = count
-        print(f"{name} ({dev_eui}): {count}")
+        print(f"{name:12s} ({dev_eui}): {count}")
     print(f"\nDevices total uplinks: {device_total}")
     print(f"Difference (gateway - devices) = {gw_total - device_total}")
 
     # DB totals
+    db_counts = get_db_counts(db_start, db_end)
+    db_total = sum(db_counts.values())
     print(f"\n=== Device uplinks (SQLite raw_logs) ===")
-    db_counts = get_db_counts(start_str.replace("Z",""), end_str.replace("Z",""))
-    db_total = 0
     for dev_eui, name in DEVICES:
         count = db_counts.get(dev_eui, 0)
-        db_total += count
-        print(f"{name} ({dev_eui}): {count}")
+        print(f"{name:12s} ({dev_eui}): {count}")
     print(f"\nDB total uplinks: {db_total}")
     print(f"Difference (gateway - DB) = {gw_total - db_total}")
     print(f"Difference (devices API - DB) = {device_total - db_total}")
