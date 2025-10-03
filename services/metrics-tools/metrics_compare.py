@@ -43,9 +43,23 @@ def get_device_rx(dev_eui, start, end):
     return 0
 
 if __name__ == "__main__":
-    end = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
-    start = end - timedelta(hours=6)
-    start_str, end_str = start.isoformat()+"Z", end.isoformat()+"Z"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--start", help="Start time (ISO8601, e.g. 2025-10-02T00:00:00Z)")
+    parser.add_argument("--end", help="End time (ISO8601, e.g. 2025-10-02T23:59:59Z)")
+    args = parser.parse_args()
+
+    if args.start and args.end:
+        start_str, end_str = args.start, args.end
+    else:
+        # 기본값: 최근 6시간
+        end = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+        start = end - timedelta(hours=6)
+        start_str, end_str = start.isoformat().replace("+00:00","Z"), end.isoformat().replace("+00:00","Z")
+
+    print(f"\n=== Interval ===")
+    print(f"UTC: {start_str} ~ {end_str}")
+    print(f"KST: {(datetime.fromisoformat(start_str.replace('Z',''))+timedelta(hours=9)).isoformat()} ~ "
+          f"{(datetime.fromisoformat(end_str.replace('Z',''))+timedelta(hours=9)).isoformat()}")
 
     gw_total = get_gateway_rx(start_str, end_str)
     print(f"\n=== Gateway total uplinks: {gw_total}")
@@ -57,5 +71,4 @@ if __name__ == "__main__":
         print(f"{name} ({dev_eui}): {count}")
 
     print(f"\n=== Devices total uplinks: {device_total}")
-    diff = gw_total - device_total
-    print(f"Difference (gateway - devices) = {diff}")
+    print(f"Difference (gateway - devices) = {gw_total - device_total}")
