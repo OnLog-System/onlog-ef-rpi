@@ -55,6 +55,9 @@ APPLICATION_ID=a0cc862c-126b-4d6a-9f0a-d5438c432d48
 SQLITE_DB_PATH=/mnt/nvme/infra/sqlite/sensor_logs.db
 ```
 
+⚠️ .env 파일은 git에 커밋하지 않고 로컬(RPi)에만 유지하세요.
+(예: /home/ubuntu/.envs/onlog-ef-rpi.env 경로에 저장)
+
 ### 3. 디바이스 목록 관리
 
 `devices.json`에서 디바이스 이름과 DevEUI를 관리합니다:
