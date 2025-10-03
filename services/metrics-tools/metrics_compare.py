@@ -13,6 +13,7 @@ SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH")
 
 headers = {"Grpc-Metadata-Authorization": f"Bearer {API_KEY}"}
 
+# EF-LHT65N 디바이스 목록
 DEVICES = [
     ("a84041f3275da38b", "EF-LHT65N-01"),
     ("a840419f755da38c", "EF-LHT65N-02"),
@@ -28,6 +29,9 @@ DEVICES = [
     ("a84041e0055da387", "EF-LHT65N-12"),
 ]
 
+# -----------------------------
+# REST API 함수
+# -----------------------------
 def get_gateway_rx(start, end):
     url = f"{API_BASE}/gateways/{GATEWAY_ID}/metrics?start={start}&end={end}&aggregation=HOUR"
     r = requests.get(url, headers=HEADERS); r.raise_for_status()
@@ -42,6 +46,26 @@ def get_device_rx(dev_eui, start, end):
         return sum(datasets[0]["data"])
     return 0
 
+# -----------------------------
+# SQLite 함수
+# -----------------------------
+def get_db_counts(start, end):
+    conn = sqlite3.connect(SQLITE_DB)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT substr(topic, instr(topic, 'device/')+7, 16) AS devEUI,
+               COUNT(*) AS packet_count
+        FROM raw_logs
+        WHERE received_at BETWEEN ? AND ?
+        GROUP BY devEUI
+    """, (start, end))
+    results = {row[0]: row[1] for row in cur.fetchall()}
+    conn.close()
+    return results
+
+# -----------------------------
+# 실행부
+# -----------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--start", help="Start time (ISO8601, e.g. 2025-10-02T00:00:00Z)")
@@ -51,7 +75,7 @@ if __name__ == "__main__":
     if args.start and args.end:
         start_str, end_str = args.start, args.end
     else:
-        # 기본값: 최근 6시간
+        # 기본: 최근 6시간
         end = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
         start = end - timedelta(hours=6)
         start_str, end_str = start.isoformat().replace("+00:00","Z"), end.isoformat().replace("+00:00","Z")
@@ -61,14 +85,30 @@ if __name__ == "__main__":
     print(f"KST: {(datetime.fromisoformat(start_str.replace('Z',''))+timedelta(hours=9)).isoformat()} ~ "
           f"{(datetime.fromisoformat(end_str.replace('Z',''))+timedelta(hours=9)).isoformat()}")
 
+    # Gateway total
     gw_total = get_gateway_rx(start_str, end_str)
     print(f"\n=== Gateway total uplinks: {gw_total}")
 
+    # Device totals
     device_total = 0
+    print(f"\n=== Device uplinks (link-metrics API) ===")
+    device_counts = {}
     for dev_eui, name in DEVICES:
         count = get_device_rx(dev_eui, start_str, end_str)
         device_total += count
+        device_counts[dev_eui] = count
         print(f"{name} ({dev_eui}): {count}")
-
-    print(f"\n=== Devices total uplinks: {device_total}")
+    print(f"\nDevices total uplinks: {device_total}")
     print(f"Difference (gateway - devices) = {gw_total - device_total}")
+
+    # DB totals
+    print(f"\n=== Device uplinks (SQLite raw_logs) ===")
+    db_counts = get_db_counts(start_str.replace("Z",""), end_str.replace("Z",""))
+    db_total = 0
+    for dev_eui, name in DEVICES:
+        count = db_counts.get(dev_eui, 0)
+        db_total += count
+        print(f"{name} ({dev_eui}): {count}")
+    print(f"\nDB total uplinks: {db_total}")
+    print(f"Difference (gateway - DB) = {gw_total - db_total}")
+    print(f"Difference (devices API - DB) = {device_total - db_total}")
