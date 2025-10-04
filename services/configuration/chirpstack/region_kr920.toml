@@ -240,6 +240,6 @@
       max_dr=5
 
     [[regions.network.extra_channels]]
-      frequency=91.900000
+      frequency=919000000
       min_dr=0
       max_dr=5
