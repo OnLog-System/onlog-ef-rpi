@@ -23,7 +23,7 @@ type="basic_station"
 
   region="KR920"
   frequency_min=920900000
-  frequency_max=9233000000
+  frequency_max=923300000
 
 
   [[backend.basic_station.concentrators]]
