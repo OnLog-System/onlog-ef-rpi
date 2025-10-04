@@ -122,33 +122,6 @@
       modulation="LORA"
       spreading_factors=[7, 8, 9, 10, 11, 12]
 
-    # our 5 more channels
-
-    [[regions.network.extra_channels]]
-      frequency=922700000
-      min_dr=0
-      max_dr=5
-
-    [[regions.network.extra_channels]]
-      frequency=922900000
-      min_dr=0
-      max_dr=5
-    
-    [[regions.network.extra_channels]]
-      frequency=923100000
-      min_dr=0
-      max_dr=5
-    
-    [[regions.network.extra_channels]]
-      frequency=923300000
-      min_dr=0
-      max_dr=5
-
-    [[regions.network.extra_channels]]
-      frequency=923900000
-      min_dr=0
-      max_dr=5
-
   # Region specific network configuration.
   [regions.network]
     
@@ -243,3 +216,30 @@
       # set this to 0 to use the default frequency plan for the configured region
       # (which could be frequency hopping).
       ping_slot_frequency=0
+
+    # our 5 more channels
+
+      [[regions.network.extra_channels]]
+        frequency=922700000
+        min_dr=0
+        max_dr=5
+
+      [[regions.network.extra_channels]]
+        frequency=922900000
+        min_dr=0
+        max_dr=5
+      
+      [[regions.network.extra_channels]]
+        frequency=923100000
+        min_dr=0
+        max_dr=5
+      
+      [[regions.network.extra_channels]]
+        frequency=923300000
+        min_dr=0
+        max_dr=5
+
+      [[regions.network.extra_channels]]
+        frequency=923900000
+        min_dr=0
+        max_dr=5
