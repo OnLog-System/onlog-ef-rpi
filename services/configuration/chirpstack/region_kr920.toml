@@ -122,6 +122,47 @@
       modulation="LORA"
       spreading_factors=[7, 8, 9, 10, 11, 12]
 
+    # our 5 more channels
+    [[regions.gateway.channels]]
+      frequency=922700000
+      min_dr=0
+      max_dr=5
+      bandwidth=125000
+      modulation="LORA"
+      spreading_factors=[7, 8, 9, 10, 11, 12]
+
+    [[regions.gateway.channels]]
+      frequency=922900000
+      min_dr=0
+      max_dr=5
+      bandwidth=125000
+      modulation="LORA"
+      spreading_factors=[7, 8, 9, 10, 11, 12]
+    
+    [[regions.gateway.channels]]
+      frequency=923100000
+      min_dr=0
+      max_dr=5
+      bandwidth=125000
+      modulation="LORA"
+      spreading_factors=[7, 8, 9, 10, 11, 12]
+    
+    [[regions.gateway.channels]]
+      frequency=923300000
+      min_dr=0
+      max_dr=5
+      bandwidth=125000
+      modulation="LORA"
+      spreading_factors=[7, 8, 9, 10, 11, 12]
+
+    [[regions.gateway.channels]]
+      frequency=919000000
+      min_dr=0
+      max_dr=5
+      bandwidth=125000
+      modulation="LORA"
+      spreading_factors=[7, 8, 9, 10, 11, 12]
+
   # Region specific network configuration.
   [regions.network]
     
