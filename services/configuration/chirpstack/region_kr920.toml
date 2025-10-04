@@ -217,29 +217,29 @@
       # (which could be frequency hopping).
       ping_slot_frequency=0
 
+    # Below is the common set of extra channels.
     # our 5 more channels
+    [[regions.network.extra_channels]]
+      frequency=922700000
+      min_dr=0
+      max_dr=5
 
-      [[regions.network.extra_channels]]
-        frequency=922700000
-        min_dr=0
-        max_dr=5
+    [[regions.network.extra_channels]]
+      frequency=922900000
+      min_dr=0
+      max_dr=5
+    
+    [[regions.network.extra_channels]]
+      frequency=923100000
+      min_dr=0
+      max_dr=5
+    
+    [[regions.network.extra_channels]]
+      frequency=923300000
+      min_dr=0
+      max_dr=5
 
-      [[regions.network.extra_channels]]
-        frequency=922900000
-        min_dr=0
-        max_dr=5
-      
-      [[regions.network.extra_channels]]
-        frequency=923100000
-        min_dr=0
-        max_dr=5
-      
-      [[regions.network.extra_channels]]
-        frequency=923300000
-        min_dr=0
-        max_dr=5
-
-      [[regions.network.extra_channels]]
-        frequency=923900000
-        min_dr=0
-        max_dr=5
+    [[regions.network.extra_channels]]
+      frequency=923900000
+      min_dr=0
+      max_dr=5
