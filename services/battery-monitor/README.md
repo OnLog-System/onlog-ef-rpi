@@ -50,6 +50,7 @@ python3 monitor_battery.py 05
 2025-09-25   zBoJbgGeAX//f/8=         0xCC1A     3098       100        Good
 2025-09-24   ScUIpwHXAX//f/8=         0x49C5     2501       0          Low
 ```
+![alt text](images/image.png)
 
 ---
 
