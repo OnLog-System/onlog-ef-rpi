@@ -1,30 +1,31 @@
 import sqlite3
 import base64
 import sys
+import json
 from datetime import datetime
+from pathlib import Path
 
 # ===============================
-# 1️⃣ DB & DEVICE 정보 설정
+# 1️⃣ DB & DEVICE 설정
 # ===============================
+BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = "/mnt/nvme/infra/sqlite/sensor_logs.db"
-
-DEVICES = {
-    "01": "a84041f3275da38b",
-    "02": "a840419f755da38c",
-    "03": "a84041949e5da381",
-    "04": "a8404166815da382",
-    "05": "a840412db25da383",
-    "06": "a84041f6e55da385",
-    "07": "a84041f65a5da384",
-    "08": "a8404133545da38a",
-    "09": "a84041bb5f5da389",
-    "10": "a8404166bf5da388",
-    "11": "a840419f4f5da386",
-    "12": "a84041e0055da387",
-}
+DEVICES_FILE = BASE_DIR / "devices.json"
 
 V_MIN = 2500  # 2.5 V
 V_MAX = 3000  # 3.0 V
+
+
+def load_devices():
+    """devices.json 로드"""
+    try:
+        with open(DEVICES_FILE, "r", encoding="utf-8") as f:
+            devices = json.load(f)
+        return {f"{i+1:02d}": d["devEui"] for i, d in enumerate(devices)}
+    except Exception as e:
+        print(f"[에러] devices.json 로드 실패: {e}")
+        sys.exit(1)
+
 
 # ===============================
 # 2️⃣ 배터리 디코딩 함수
@@ -42,7 +43,6 @@ def decode_battery(base64_str):
         0b11: "Good",
     }.get(status_code, "Unknown")
 
-    # % 계산 (선형 스케일)
     percent = max(0, min(100, int((voltage_mv - V_MIN) / (V_MAX - V_MIN) * 100)))
     return f"0x{bat_raw:04X}", voltage_mv, percent, status
 
@@ -64,7 +64,7 @@ def fetch_payloads(dev_eui):
               PARTITION BY strftime('%Y-%m-%d', received_at)
               ORDER BY received_at DESC
             ) AS rn
-          FROM sensor_logs
+          FROM raw_logs
           WHERE topic LIKE '%/event/up'
             AND json_extract(payload, '$.deviceInfo.devEui') = ?
         )
@@ -82,18 +82,20 @@ def fetch_payloads(dev_eui):
 # 4️⃣ 실행부
 # ===============================
 def main():
+    devices = load_devices()
+
     if len(sys.argv) < 2:
         print("사용법: python3 monitor_battery.py <센서번호>")
         print("예시:   python3 monitor_battery.py 05")
         return
 
     sensor_id = sys.argv[1].zfill(2)
-    if sensor_id not in DEVICES:
+    if sensor_id not in devices:
         print(f"[에러] 존재하지 않는 센서 번호: {sensor_id}")
-        print("가능한 센서:", ", ".join(DEVICES.keys()))
+        print("가능한 센서:", ", ".join(devices.keys()))
         return
 
-    dev_eui = DEVICES[sensor_id]
+    dev_eui = devices[sensor_id]
     print(f"\n📡 센서 {sensor_id} | DevEUI: {dev_eui}\n")
 
     rows = fetch_payloads(dev_eui)
