@@ -1,43 +1,51 @@
-# ⚖️ onlog-ef-qw — RS232 전자저울 LoRa 연동 모듈
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>onlog-ef-qw — RS232 전자저울 LoRa 연동 모듈</title>
+</head>
+<body>
+  <h1>⚖️ onlog-ef-qw — RS232 전자저울 LoRa 연동 모듈</h1>
 
-본 디렉터리는 **CAS QW-15 전자저울**의 RS-232 계량 데이터를  
-**Raspberry Pi 5 → LoRa-E5 Dev Board → RAK7268 Gateway → ChirpStack**으로  
-전송하기 위한 **엣지 노드용 브리지 모듈**입니다.
+  <p>
+    본 디렉터리는 <strong>CAS QW-15 전자저울</strong>의 RS-232 계량 데이터를<br>
+    <strong>Raspberry Pi 5 → LoRa-E5 Dev Board → RAK7268 Gateway → ChirpStack</strong>으로<br>
+    전송하기 위한 <strong>엣지 노드용 브리지 모듈</strong>입니다.
+  </p>
 
----
+  <hr>
 
-## 🧩 개요
+  <h2>🧩 개요</h2>
+  <table border="1" cellspacing="0" cellpadding="6">
+    <tr><th>항목</th><th>내용</th></tr>
+    <tr><td>장비</td><td>CAS QW-15 (RS232, 4800 bps)</td></tr>
+    <tr><td>변환</td><td>FTDI RS232–USB (FT232)</td></tr>
+    <tr><td>제어 장치</td><td>Raspberry Pi 5 (8GB)</td></tr>
+    <tr><td>송신 모듈</td><td>LoRa-E5 Dev Board (CP210x UART, v4.0.11)</td></tr>
+    <tr><td>게이트웨이</td><td>RAK7268V2 (KR920)</td></tr>
+    <tr><td>네트워크</td><td>LoRaWAN (OTAA, Class A)</td></tr>
+    <tr><td>서버</td><td>ChirpStack v4 (Docker Compose)</td></tr>
+  </table>
 
-| 항목     | 내용                                   |
-|----------|----------------------------------------|
-| 장비     | CAS QW-15 (RS232, 4800 bps)            |
-| 변환     | FTDI RS232–USB (FT232)                 |
-| 제어 장치| Raspberry Pi 5 (8GB)                   |
-| 송신 모듈| LoRa-E5 Dev Board (CP210x UART, v4.0.11)|
-| 게이트웨이| RAK7268V2 (KR920)                     |
-| 네트워크 | LoRaWAN (OTAA, Class A)                |
-| 서버     | ChirpStack v4 (Docker Compose)         |
+  <hr>
 
----
+  <h2>⚙️ 주요 파일</h2>
+  <table border="1" cellspacing="0" cellpadding="6">
+    <tr><th>파일명</th><th>설명</th></tr>
+    <tr><td><code>lora_scale_bridge.py</code></td><td>저울 → LoRa 송신 전체 파이프라인 구현</td></tr>
+    <tr><td><code>README.md</code></td><td>본 문서</td></tr>
+  </table>
 
-## ⚙️ 주요 파일
+  <hr>
 
-| 파일명                | 설명                                 |
-|-----------------------|--------------------------------------|
-| `lora_scale_bridge.py`| 저울 → LoRa 송신 전체 파이프라인 구현 |
-| `README.md`           | 본 문서                              |
-
----
-
-## 📜 lora_scale_bridge.py 개요
-
-```python
+  <h2>📜 lora_scale_bridge.py 개요</h2>
+  <pre><code>
 import serial, time
 
 SCALE_PORT = "/dev/ttyUSB0"  # QW-15
 LORA_PORT  = "/dev/ttyUSB1"  # LoRa-E5
 
-# 저울 데이터 수집
+저울 데이터 수집
 scale = serial.Serial(SCALE_PORT, 4800, timeout=1)
 LoRa 제어
 lora  = serial.Serial(LORA_PORT, 9600, timeout=1)
