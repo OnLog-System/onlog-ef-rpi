@@ -13,7 +13,7 @@ DB_PATH = "/mnt/nvme/infra/sqlite/sensor_logs.db"
 DEVICES_FILE = BASE_DIR / "devices.json"
 
 V_MIN = 2500  # 2.5 V
-V_MAX = 3000  # 3.0 V
+V_MAX = 3300  # 3.0 V
 KST = timezone(timedelta(hours=9))  # 한국 시간대
 
 
