@@ -5,7 +5,6 @@ import sqlite3
 import requests
 import json
 import csv
-import redis
 import statistics
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
@@ -20,8 +19,7 @@ API_BASE = os.getenv("CHIRPSTACK_API_URL", "http://localhost:8090/api")
 API_KEY = os.getenv("CHIRPSTACK_API_KEY")
 GATEWAY_ID = os.getenv("GATEWAY_ID")
 SQLITE_DB = os.getenv("SQLITE_DB_PATH", "/mnt/nvme/infra/sqlite/sensor_logs.db")
-REDIS_HOST = os.getenv("REDIS_HOST", "redis")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+REDIS_METRICS_DB = os.getenv("REDIS_METRICS_DB_PATH", "/mnt/nvme/infra/redis-metrics/redis_metrics.db")
 
 HEADERS = {"Grpc-Metadata-Authorization": f"Bearer {API_KEY}"}
 
@@ -81,28 +79,30 @@ def get_db_counts(start, end):
     return results
 
 # -----------------------------
-# Redis 연결 및 메트릭 수집
+# SQLite 메트릭 수집 (redis_metrics.db)
 # -----------------------------
-def connect_redis():
-    """Redis 연결"""
-    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+def get_device_metrics_from_sqlite(dev_eui, start_dt, end_dt):
+    """SQLite (redis_metrics.db)에서 디바이스 메트릭 수집 및 집계"""
+    conn = sqlite3.connect(REDIS_METRICS_DB)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
 
-def generate_hour_keys(dev_eui, start_dt, end_dt):
-    """시간 범위 내 모든 HOUR 키 생성"""
-    keys = []
-    current = start_dt.replace(minute=0, second=0, microsecond=0)
+    # 시간 범위 변환 (ISO format)
+    start_str = start_dt.isoformat()
+    end_str = end_dt.isoformat()
 
-    while current <= end_dt:
-        timestamp_str = current.strftime("%Y%m%d%H%M")
-        key = f"metrics:{{device:{dev_eui}}}:HOUR:{timestamp_str}"
-        keys.append(key)
-        current += timedelta(hours=1)
+    query = """
+        SELECT ts, data FROM metrics
+        WHERE obj_type = 'device'
+          AND obj_id = ?
+          AND granularity = 'HOUR'
+          AND ts >= ? AND ts <= ?
+        ORDER BY ts
+    """
 
-    return keys
-
-def get_device_metrics_from_redis(r, dev_eui, start_dt, end_dt):
-    """Redis에서 디바이스 메트릭 수집 및 집계"""
-    keys = generate_hour_keys(dev_eui, start_dt, end_dt)
+    cur.execute(query, (dev_eui, start_str, end_str))
+    rows = cur.fetchall()
+    conn.close()
 
     aggregated = {
         "rx_count": 0,
@@ -115,11 +115,8 @@ def get_device_metrics_from_redis(r, dev_eui, start_dt, end_dt):
         "errors": defaultdict(int)
     }
 
-    for key in keys:
-        if not r.exists(key):
-            continue
-
-        data = r.hgetall(key)
+    for row in rows:
+        data = json.loads(row['data'])
 
         # 기본 카운트
         aggregated["rx_count"] += int(data.get("rx_count", 0))
@@ -496,13 +493,11 @@ if __name__ == "__main__":
     print(f"Difference (Gateway - DB) = {gw_total - db_total}")
     print(f"Difference (Devices API - DB) = {device_total - db_total}")
 
-    # 상세 분석 (Redis)
+    # 상세 분석 (SQLite)
     if args.detailed:
         print(f"\n{'='*80}")
-        print(f"=== 상세 분석 (Redis metrics) ===")
+        print(f"=== 상세 분석 (SQLite redis_metrics.db) ===")
         print(f"{'='*80}")
-
-        r = connect_redis()
 
         # 결과 저장용 딕셔너리
         export_data = {
@@ -521,8 +516,8 @@ if __name__ == "__main__":
             print(f"📡 {name} ({dev_eui})")
             print(f"{'-'*80}")
 
-            # Redis에서 메트릭 수집
-            metrics = get_device_metrics_from_redis(r, dev_eui, start_dt, end_dt)
+            # SQLite에서 메트릭 수집
+            metrics = get_device_metrics_from_sqlite(dev_eui, start_dt, end_dt)
 
             # 분석
             freq_analysis = analyze_frequency_distribution(metrics)
