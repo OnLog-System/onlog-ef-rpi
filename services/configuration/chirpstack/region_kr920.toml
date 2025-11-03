@@ -220,42 +220,44 @@
 
     # Below is the common set of extra channels.
     # our 5 more channels
-    [[regions.network.extra_channels]]
-      frequency=922700000
-      min_dr=0
-      max_dr=5
-      bandwidth=125000
-      modulation="LORA"
-      spreading_factors=[7, 8, 9, 10, 11, 12]
-
-    [[regions.network.extra_channels]]
-      frequency=922900000
-      min_dr=0
-      max_dr=5
-      bandwidth=125000
-      modulation="LORA"
-      spreading_factors=[7, 8, 9, 10, 11, 12]
-
-    [[regions.network.extra_channels]]
-      frequency=923100000
-      min_dr=0
-      max_dr=5
-      bandwidth=125000
-      modulation="LORA"
-      spreading_factors=[7, 8, 9, 10, 11, 12]
-
-    [[regions.network.extra_channels]]
-      frequency=923300000
-      min_dr=0
-      max_dr=5
-      bandwidth=125000
-      modulation="LORA"
-      spreading_factors=[7, 8, 9, 10, 11, 12]
-
-    [[regions.network.extra_channels]]
-      frequency=921700000
-      min_dr=0
-      max_dr=5
-      bandwidth=125000
-      modulation="LORA"
-      spreading_factors=[7, 8, 9, 10, 11, 12]
+    # Set it temporarily to 3 channels
+    #
+    # [[regions.network.extra_channels]]
+    #   frequency=922700000
+    #   min_dr=0
+    #   max_dr=5
+    #   bandwidth=125000
+    #   modulation="LORA"
+    #   spreading_factors=[7, 8, 9, 10, 11, 12]
+    #
+    # [[regions.network.extra_channels]]
+    #   frequency=922900000
+    #   min_dr=0
+    #   max_dr=5
+    #   bandwidth=125000
+    #   modulation="LORA"
+    #   spreading_factors=[7, 8, 9, 10, 11, 12]
+    #
+    # [[regions.network.extra_channels]]
+    #   frequency=923100000
+    #   min_dr=0
+    #   max_dr=5
+    #   bandwidth=125000
+    #   modulation="LORA"
+    #   spreading_factors=[7, 8, 9, 10, 11, 12]
+    #
+    # [[regions.network.extra_channels]]
+    #   frequency=923300000
+    #   min_dr=0
+    #   max_dr=5
+    #   bandwidth=125000
+    #   modulation="LORA"
+    #   spreading_factors=[7, 8, 9, 10, 11, 12]
+    #
+    # [[regions.network.extra_channels]]
+    #   frequency=921700000
+    #   min_dr=0
+    #   max_dr=5
+    #   bandwidth=125000
+    #   modulation="LORA"
+    #   spreading_factors=[7, 8, 9, 10, 11, 12]
