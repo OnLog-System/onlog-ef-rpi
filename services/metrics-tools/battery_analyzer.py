@@ -36,7 +36,7 @@ DB_PATH = "/mnt/nvme/infra/sqlite/sensor_logs.db"
 DEVICES_FILE = BASE_DIR / "devices.json"
 
 V_MIN = 2500  # 2.5V
-V_MAX = 3300  # 3.3V
+V_MAX = 3000  # 3.0V
 KST = timezone(timedelta(hours=9))
 
 # -----------------------------
@@ -335,6 +335,7 @@ def main():
   python3 battery_analyzer.py --days 30 --interval 1
   python3 battery_analyzer.py --days 7 --interval 6 --export-json battery.json
   python3 battery_analyzer.py --days 7 --interval 6 --export-csv battery.csv
+  python3 battery_analyzer.py --days 30 --interval 2 --export-csv battery.csv
   
 파일 전송 (scp):
   scp ubuntu@your-server:/path/to/battery.json ./
