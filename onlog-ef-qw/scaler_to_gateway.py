@@ -2,153 +2,180 @@ import serial
 import time
 import sys
 import struct
+import traceback
 
-# === 설정 구간 ===
-SCALE_PORT = "/dev/ttyUSB0"   # 저울 포트
-LORA_PORT = "/dev/ttyUSB1"    # LoRa-E5 포트
-LORA_BAUDRATE = 9600
+# =========================
+# Configuration
+# =========================
+SCALE_PORT = "/dev/ttyUSB0"
+LORA_PORT  = "/dev/ttyUSB1"
+
 SCALE_BAUDRATE = 4800
+LORA_BAUDRATE  = 9600
 
-
-
-# [중요] ChirpStack에서 확인한 AppKey를 입력하세요 (DevEUI는 모듈 내장값 사용 권장)
 APP_KEY = "2b7e151628aed2a6abf7158809cf4f3c"
 
-def setup_serial_connection(port, baudrate, name):
-    try:
-        ser = serial.Serial(port, baudrate, timeout=1)
-        print(f"✅ [{name}] 연결 성공: {port}")
-        return ser
-    except serial.SerialException as e:
-        print(f"❌ [{name}] 연결 실패: {e}")
-        sys.exit(1)
+MIN_TX_INTERVAL = 10       # seconds (LoRa duty protection)
+JOIN_RETRY_WAIT = 60       # seconds
+SERIAL_RETRY_WAIT = 5      # seconds
 
-def send_at_cmd(ser, cmd, wait_time=0.5):
-    """AT 명령어를 보내고 응답을 반환합니다."""
-    ser.write((cmd + "\r\n").encode())
-    time.sleep(wait_time)
-    response = ""
-    while ser.in_waiting:
+
+# =========================
+# Utilities
+# =========================
+def log(msg):
+    print(time.strftime("[%Y-%m-%d %H:%M:%S]"), msg, flush=True)
+
+
+def open_serial(port, baud, name):
+    while True:
         try:
+            ser = serial.Serial(port, baudrate=baud, timeout=1)
+            log(f"✅ {name} serial connected ({port})")
+            return ser
+        except serial.SerialException as e:
+            log(f"⚠️ {name} serial open failed: {e}")
+            time.sleep(SERIAL_RETRY_WAIT)
+
+
+def send_at(ser, cmd, wait=0.5):
+    try:
+        ser.write((cmd + "\r\n").encode())
+        time.sleep(wait)
+        resp = ""
+        while ser.in_waiting:
             line = ser.readline().decode(errors="ignore").strip()
             if line:
-                response += line + "\n"
-        except:
-            pass
-    return response.strip()
+                resp += line + "\n"
+        return resp.strip()
+    except Exception:
+        return ""
 
-def init_lora(ser):
-    """LoRa 모듈 초기화 및 네트워크 가입 (Join)"""
-    print("\n📡 [LoRa] 초기화 및 네트워크 접속 시도...")
 
-    # 1. 설정 초기화 및 주파수 설정 (한국)
-    send_at_cmd(ser, "AT+FDEFAULT")      # 공장 초기화
-    send_at_cmd(ser, "AT+DR=KR920")      # 한국 주파수 대역
-    send_at_cmd(ser, "AT+CH=NUM,0-2")    # 채널 설정 (통신사 호환)
-    send_at_cmd(ser, "AT+MODE=LWOTAA")   # OTAA 모드
+# =========================
+# LoRa Handling
+# =========================
+def lora_join(ser):
+    log("📡 LoRa init + join start")
 
-    # 2. 키 설정
-    send_at_cmd(ser, f'AT+KEY=APPKEY,"{APP_KEY}"')
+    send_at(ser, "AT+FDEFAULT")
+    send_at(ser, "AT+DR=KR920")
+    send_at(ser, "AT+CH=NUM,0-2")
+    send_at(ser, "AT+MODE=LWOTAA")
+    send_at(ser, f'AT+KEY=APPKEY,"{APP_KEY}"')
 
-    # 3. Join 시도
-    print("⏳ [LoRa] 네트워크 가입 요청 중 (AT+JOIN)...")
-    send_at_cmd(ser, "AT+JOIN")
+    send_at(ser, "AT+JOIN")
 
-    # Join 완료 대기 (최대 30초)
     for _ in range(30):
-        response = send_at_cmd(ser, "") # 빈 명령으로 로그 읽기
-        if "Network joined" in response:
-            print("✅ [LoRa] 네트워크 가입 성공!")
+        resp = send_at(ser, "", wait=1)
+        if "Network joined" in resp:
+            log("✅ LoRa network joined")
             return True
-        if "Join failed" in response:
-            print("❌ [LoRa] 가입 실패. 재시도 필요.")
-            send_at_cmd(ser, "AT+JOIN")
-        print(".", end="", flush=True)
+        if "Join failed" in resp:
+            log("❌ Join failed (retrying)")
+            send_at(ser, "AT+JOIN")
         time.sleep(1)
 
-    print("\n⚠️ [LoRa] 가입 시간 초과. (Gateway 상태를 확인하세요)")
+    log("⚠️ Join timeout")
     return False
 
-def read_scale(scale_ser):
-    """저울 데이터 읽기 (이전 코드와 동일)"""
-    if scale_ser.in_waiting:
-        try:
-            line = scale_ser.readline().decode(errors="ignore").strip()
-            # 예: "ST,GS,  123.4 g" 형태 처리
+
+def lora_send(ser, payload_hex):
+    try:
+        cmd = f'AT+MSGHEX="{payload_hex}"'
+        ser.write((cmd + "\r\n").encode())
+        return True
+    except Exception:
+        return False
+
+
+# =========================
+# Scale Handling
+# =========================
+def read_scale(ser):
+    try:
+        if ser.in_waiting:
+            line = ser.readline().decode(errors="ignore").strip()
+            # Example: "ST,GS,  123.4 g"
             if "GS" in line and "g" in line:
-                parts = line.split(",")
-                # 간단한 파싱 로직 (상황에 맞춰 조정)
-                for part in parts:
-                    clean_part = part.replace("g", "").strip()
+                parts = line.replace("g", "").split(",")
+                for p in parts:
                     try:
-                        return float(clean_part)
+                        return float(p.strip())
                     except ValueError:
-                        continue
-        except Exception:
-            pass
+                        pass
+    except Exception:
+        pass
     return None
 
+
+# =========================
+# Main FSM Loop
+# =========================
 def main():
-    print("=== ⚖️ LoRaWAN Real-time Scale ===")
+    log("⚖️ Scale → LoRa Edge Sender starting")
 
-    scale = setup_serial_connection(SCALE_PORT, SCALE_BAUDRATE, "저울")
-    lora = setup_serial_connection(LORA_PORT, LORA_BAUDRATE, "LoRa")
-
-    # 1. 초기화
-    if not init_lora(lora):
-        return
-
-    print("\n🚀 데이터 전송 모드 시작...\n")
-
-    # === [수정됨] 시간 관리 변수 ===
-    last_send_time = 0
-    MIN_INTERVAL = 10  # 최소 전송 간격 (초 단위). 5초 이하로 줄이면 전송 실패 확률 높음.
+    scale_ser = None
+    lora_ser  = None
+    joined    = False
+    last_tx   = 0
 
     while True:
         try:
-            # 2. 저울 값은 쉬지 않고 계속 읽습니다. (버퍼 비우기 효과)
-            weight = read_scale(scale)
+            # --- Ensure scale serial ---
+            if scale_ser is None or not scale_ser.is_open:
+                scale_ser = open_serial(SCALE_PORT, SCALE_BAUDRATE, "Scale")
 
-            # 현재 시간 확인
-            current_time = time.time()
+            # --- Ensure LoRa serial ---
+            if lora_ser is None or not lora_ser.is_open:
+                lora_ser = open_serial(LORA_PORT, LORA_BAUDRATE, "LoRa")
+                joined = False
 
-            # 3. 데이터가 있고 + 마지막 전송 후 5초가 지났다면 -> 전송!
-            if weight is not None and (current_time - last_send_time > MIN_INTERVAL):
+            # --- Ensure joined ---
+            if not joined:
+                joined = lora_join(lora_ser)
+                if not joined:
+                    time.sleep(JOIN_RETRY_WAIT)
+                continue
 
-                print(f"⚖️ [실시간 측정] {weight} g")
+            # --- Read scale continuously ---
+            weight = read_scale(scale_ser)
+            now = time.time()
 
-                # 데이터 인코딩
+            if weight is not None and (now - last_tx) >= MIN_TX_INTERVAL:
                 weight_int = int(weight * 100)
-                hex_payload = "{:04X}".format(weight_int)
+                payload = f"{weight_int:04X}"
 
-                # 전송 (Unconfirmed 모드로 변경 권장: 속도가 더 빠름)
-                # AT+MSGHEX는 응답(ACK)을 기다리지 않아서 연속 전송에 유리함
-                # Confirmed 모드로 바꾸고 싶다면 CMSGHEX 명령어 사용
-                cmd = f'AT+MSGHEX="{hex_payload}"'
+                ok = lora_send(lora_ser, payload)
+                if ok:
+                    log(f"📤 Sent weight: {weight} g ({payload})")
+                    last_tx = now
+                else:
+                    log("⚠️ LoRa send failed → force rejoin")
+                    joined = False
+                    time.sleep(2)
 
-                print(f"📡 [전송] {hex_payload}")
+            time.sleep(0.1)
 
-                # 전송 명령
-                lora.write((cmd + "\r\n").encode())
+        except serial.SerialException:
+            log("⚠️ Serial disconnected → reset")
+            try:
+                if scale_ser:
+                    scale_ser.close()
+                if lora_ser:
+                    lora_ser.close()
+            except Exception:
+                pass
+            scale_ser = None
+            lora_ser  = None
+            joined = False
+            time.sleep(SERIAL_RETRY_WAIT)
 
-                # [중요] 전송 후 쿨타임 갱신
-                last_send_time = time.time()
-
-                # LoRa 모듈이 명령을 소화할 아주 짧은 틈은 필요함
-                time.sleep(0.5)
-
-            else:
-                # 데이터를 못 읽었거나 쿨타임 중이면 아주 짧게 대기
-                time.sleep(0.1)
-
-        except KeyboardInterrupt:
-            break
         except Exception as e:
-            print(f"Error: {e}")
-            time.sleep(1)
+            log("🔥 Unexpected error")
+            traceback.print_exc()
+            time.sleep(2)
 
-    scale.close()
-    lora.close()
 
 if __name__ == "__main__":
     main()
