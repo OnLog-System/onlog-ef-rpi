@@ -13,7 +13,7 @@ APP_DB_MAP = {
     "a0cc862c-126b-4d6a-9f0a-d5438c432d48": "sensor_logs.db",
 
     # 저울용 application (예시)
-    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb": "scaler_logs.db",
+    "9f43161d-1f4b-482a-be74-2797c516c2c5": "scale_logs.db",
 }
 
 # --- DB connection cache ---
