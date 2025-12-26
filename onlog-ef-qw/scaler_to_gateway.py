@@ -7,8 +7,16 @@ import traceback
 # =========================
 # Configuration
 # =========================
-SCALE_PORT = "/dev/ttyUSB0"
-LORA_PORT  = "/dev/ttyUSB1"
+LORA_PORT = (
+    "/dev/serial/by-id/"
+    "usb-Silicon_Labs_CP2102N_USB_to_UART_Bridge_Controller_"
+    "265a3026e570ef118084ebd0eddd73fb-if00-port0"
+)
+
+SCALE_PORT = (
+    "/dev/serial/by-id/"
+    "usb-FTDI_FT232R_USB_UART_A9HHUMDK-if00-port0"
+)
 
 SCALE_BAUDRATE = 4800
 LORA_BAUDRATE  = 9600
