@@ -23,7 +23,7 @@ LORA_BAUDRATE  = 9600
 
 APP_KEY = "2b7e151628aed2a6abf7158809cf4f3c"
 
-MIN_TX_INTERVAL = 10       # seconds (LoRa duty protection)
+MIN_TX_INTERVAL = 5       # seconds (LoRa duty protection)
 JOIN_RETRY_WAIT = 60       # seconds
 SERIAL_RETRY_WAIT = 5      # seconds
 
