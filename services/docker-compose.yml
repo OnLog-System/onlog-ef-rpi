@@ -143,18 +143,18 @@ services:
     volumes:
       - /mnt/nvme/infra/redis-metrics:/data
 
-  # 6. MSK Producer (Kafka 프로듀서)
-  msk-producer:
-    build:
-      context: ./msk-producer
-    container_name: onlog-msk-producer
-    restart: unless-stopped
-    environment:
-      AWS_REGION: ap-northeast-2
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-    networks:
-      - default
+  # # 6. MSK Producer (Kafka 프로듀서)
+  # msk-producer:
+  #   build:
+  #     context: ./msk-producer
+  #   container_name: onlog-msk-producer
+  #   restart: unless-stopped
+  #   environment:
+  #     AWS_REGION: ap-northeast-2
+  #     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+  #     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+  #   networks:
+  #     - default
 
 volumes:
   postgresqldata:
