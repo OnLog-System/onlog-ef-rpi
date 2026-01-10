@@ -13,7 +13,7 @@ COPY libs ./libs
 COPY src ./src
 
 # 컴파일
-RUN javac -encoding UTF-8 -cp "libs/*" src/MskProducer.java
+RUN javac -cp "libs/*" src/MskProducer.java
 
 # 실행
 CMD ["java", "-cp", "src:libs/*", "MskProducer"]
