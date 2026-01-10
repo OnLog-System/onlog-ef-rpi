@@ -76,7 +76,7 @@ services:
     ports:
       - "1883:1883"
     volumes: 
-      - ./configuration/mosquitto/config/:/mosquitto/config/
+      - /mnt/nvme/chirpstack/mosquitto/config:/mosquitto/config/
       - /mnt/nvme/chirpstack/mosquitto/data:/mosquitto/data
       - /mnt/nvme/chirpstack/mosquitto/log:/mosquitto/log
 
