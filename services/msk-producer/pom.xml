@@ -23,7 +23,7 @@
       <version>3.7.0</version>
     </dependency>
 
-    <!-- MSK IAM Auth (AWS 공식) -->
+    <!-- MSK IAM Auth -->
     <dependency>
       <groupId>software.amazon.msk</groupId>
       <artifactId>aws-msk-iam-auth</artifactId>
@@ -38,5 +38,34 @@
     </dependency>
 
   </dependencies>
+
+  <build>
+    <plugins>
+
+      <!-- 실행 가능한 fat-jar 생성 -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>MskProducer</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+    </plugins>
+  </build>
 
 </project>
