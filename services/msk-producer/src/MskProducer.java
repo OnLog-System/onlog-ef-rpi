@@ -37,23 +37,29 @@ public class MskProducer {
 
         KafkaProducer<String, String> producer = new KafkaProducer<>(props);
 
-        ProducerRecord<String, String> record =
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            producer.close();
+        }));
+
+        while (true) {
+            ProducerRecord<String, String> record =
                 new ProducerRecord<>("onlog-test", "hello-from-rpi");
 
-        producer.send(record, (metadata, exception) -> {
-            if (exception != null) {
-                exception.printStackTrace();
-            } else {
-                System.out.println(
+            producer.send(record, (metadata, exception) -> {
+                if (exception != null) {
+                    exception.printStackTrace();
+                } else {
+                    System.out.println(
                         "SUCCESS: " +
                         metadata.topic() +
                         " partition=" + metadata.partition() +
                         " offset=" + metadata.offset()
-                );
-            }
-        });
+                    );
+                }
+            });
 
-        producer.flush();
-        producer.close();
+            producer.flush();
+            Thread.sleep(5000);
+        }
     }
 }
