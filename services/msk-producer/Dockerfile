@@ -1,6 +1,6 @@
 FROM eclipse-temurin:17-jdk-jammy
 
-# ---- CA 인증서 (MSK TLS 필수) ----
+# TLS (MSK 필수)
 RUN apt-get update && \
     apt-get install -y ca-certificates && \
     update-ca-certificates && \
@@ -8,12 +8,11 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# 라이브러리 및 소스 복사
 COPY libs ./libs
 COPY src ./src
 
-# 컴파일
-RUN javac -cp "libs/*" src/MskProducer.java
+# 컴파일 결과를 /app/classes 로 고정
+RUN mkdir -p classes && \
+    javac -cp "libs/*" -d classes src/MskProducer.java
 
-# 실행
-CMD ["java", "-cp", "src:libs/*", "MskProducer"]
+CMD ["java", "-cp", "classes:libs/*", "MskProducer"]
