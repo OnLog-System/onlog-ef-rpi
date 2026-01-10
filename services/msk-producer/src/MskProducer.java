@@ -9,18 +9,30 @@ public class MskProducer {
 
         Properties props = new Properties();
 
-        // MSK Private Bootstrap (IAM 포트)
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                "b-1.devmsk.xxxxxx.c3.kafka.ap-northeast-2.amazonaws.com:9098");
+        // ===== Bootstrap Servers (ENV) =====
+        String bootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS");
+        if (bootstrapServers == null || bootstrapServers.isEmpty()) {
+            throw new RuntimeException("KAFKA_BOOTSTRAP_SERVERS is not set");
+        }
 
-        // Kafka 기본
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                StringSerializer.class.getName());
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                StringSerializer.class.getName());
+        props.put(
+            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+            bootstrapServers
+        );
+        // ===================================
+
+        // Kafka 기본 설정
+        props.put(
+            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+            StringSerializer.class.getName()
+        );
+        props.put(
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+            StringSerializer.class.getName()
+        );
         props.put(ProducerConfig.ACKS_CONFIG, "all");
 
-        // ===== IAM + TLS 핵심 =====
+        // ===== IAM + TLS =====
         props.put("security.protocol", "SASL_SSL");
         props.put("sasl.mechanism", "AWS_MSK_IAM");
 
@@ -33,13 +45,12 @@ public class MskProducer {
             "sasl.client.callback.handler.class",
             "software.amazon.msk.auth.iam.IAMClientCallbackHandler"
         );
-        // =========================
+        // =====================
 
-        KafkaProducer<String, String> producer = new KafkaProducer<>(props);
+        KafkaProducer<String, String> producer =
+            new KafkaProducer<>(props);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            producer.close();
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(producer::close));
 
         while (true) {
             ProducerRecord<String, String> record =
