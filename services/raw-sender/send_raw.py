@@ -7,65 +7,57 @@ import os
 from datetime import datetime, timezone
 
 # ===============================
-# Config
+# Env / Config
 # ===============================
-SENSOR_DB_PATH = "/mnt/nvme/infra/sqlite/sensor_logs.db"
-SCALE_DB_PATH  = "/mnt/nvme/infra/sqlite/scale_logs.db"
+SENSOR_DB_PATH = os.getenv("SENSOR_DB_PATH", "/data/sensor_logs.db")
+SCALE_DB_PATH  = os.getenv("SCALE_DB_PATH", "/data/scale_logs.db")
 
-API_URL = "http://43.201.233.103/api/ingest/normalized"
-API_KEY = "changeme"
+API_URL = os.getenv("API_URL")
+API_KEY = os.getenv("API_KEY")
 
-BATCH_SIZE = 50
-SLEEP_SEC = 3
-REQUEST_TIMEOUT = 5
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "20"))
+SLEEP_SEC  = int(os.getenv("SLEEP_SEC", "5"))
+TIMEOUT    = 5
 
 
 # ===============================
-# Helpers
+# Utils
 # ===============================
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def parse_ts(ts):
-    if ts is None:
-        return None
-    return ts.replace("Z", "+00:00")
-
-
 # ===============================
-# LHT65N Decoder
+# Decoder
 # ===============================
 def decode_lht65n(data_b64: str):
     raw = base64.b64decode(data_b64)
 
-    # LHT65N payload (confirmed from your samples)
-    temp = ((raw[0] << 8) | raw[1]) / 100
-    hum  = ((raw[2] << 8) | raw[3]) / 100
-    bat  = (raw[4] << 8) | raw[5]
+    temperature = ((raw[0] << 8) | raw[1]) / 100
+    humidity    = ((raw[2] << 8) | raw[3]) / 100
+    battery_mv  = (raw[4] << 8) | raw[5]
 
-    if bat >= 3000:
+    if battery_mv >= 3000:
         status = "GOOD"
-    elif bat >= 2700:
+    elif battery_mv >= 2700:
         status = "OK"
-    elif bat >= 2400:
+    elif battery_mv >= 2400:
         status = "LOW"
     else:
         status = "ULTRA_LOW"
 
-    return temp, hum, bat, status
+    return temperature, humidity, battery_mv, status
 
 
 def decode_scale(data_b64: str):
     raw = base64.b64decode(data_b64)
-    # scale payload: single signed byte / example "ViI="
     return raw[0]
 
 
 # ===============================
-# Normalize Builders
+# Normalizers
 # ===============================
-def build_env_event(row):
+def normalize_env(row):
     payload = json.loads(row["payload"])
     rx = payload["rxInfo"][0]
 
@@ -73,6 +65,7 @@ def build_env_event(row):
 
     return {
         "type": "env",
+
         "event_time": payload["time"],
         "edge_ingest_time": row["received_at"],
 
@@ -120,7 +113,7 @@ def build_env_event(row):
     }
 
 
-def build_scale_event(row):
+def normalize_scale(row):
     payload = json.loads(row["payload"])
     rx = payload["rxInfo"][0]
 
@@ -128,6 +121,7 @@ def build_scale_event(row):
 
     return {
         "type": "scale",
+
         "event_time": payload["time"],
         "edge_ingest_time": row["received_at"],
 
@@ -175,7 +169,7 @@ def build_scale_event(row):
 # ===============================
 # Sender Core
 # ===============================
-def process_db(db_path, builder):
+def process_db(db_path, normalizer):
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -188,11 +182,11 @@ def process_db(db_path, builder):
         ORDER BY received_at
         LIMIT ?
         """,
-        (BATCH_SIZE,)
+        (BATCH_SIZE,),
     ).fetchall()
 
     for row in rows:
-        event = builder(row)
+        event = normalizer(row)
 
         r = requests.post(
             API_URL,
@@ -200,8 +194,8 @@ def process_db(db_path, builder):
                 "Content-Type": "application/json",
                 "X-API-Key": API_KEY,
             },
-            data=json.dumps(event),
-            timeout=REQUEST_TIMEOUT,
+            json=event,
+            timeout=TIMEOUT,
         )
 
         if r.status_code == 200:
@@ -211,7 +205,7 @@ def process_db(db_path, builder):
             )
             conn.commit()
         else:
-            print("Upload failed:", r.status_code, r.text)
+            print("upload failed:", r.status_code, r.text)
             break
 
     conn.close()
@@ -223,10 +217,10 @@ def process_db(db_path, builder):
 def main():
     while True:
         try:
-            process_db(SENSOR_DB_PATH, build_env_event)
-            process_db(SCALE_DB_PATH, build_scale_event)
+            process_db(SENSOR_DB_PATH, normalize_env)
+            process_db(SCALE_DB_PATH, normalize_scale)
         except Exception as e:
-            print("Sender error:", e)
+            print("sender error:", e)
 
         time.sleep(SLEEP_SEC)
 
