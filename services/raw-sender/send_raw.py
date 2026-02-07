@@ -1,14 +1,14 @@
 import sqlite3
 import requests
 import time
-import json
+import os
 
-DB_PATH = "/mnt/nvme/infra/sqlite/sensor_logs.db"
-API_URL = "http://43.201.233.103/api/ingest/raw"
-API_KEY = "changeme"
+DB_PATH = os.getenv("DB_PATH", "/data/sensor_logs.db")
+API_URL = os.getenv("API_URL", "http://43.201.233.103/api/ingest/raw")
+API_KEY = os.getenv("API_KEY", "changeme")
 
-BATCH_SIZE = 20
-SLEEP_SEC = 5
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "20"))
+SLEEP_SEC = int(os.getenv("SLEEP_SEC", "5"))
 
 
 def main():
@@ -26,7 +26,7 @@ def main():
                 ORDER BY received_at
                 LIMIT ?
                 """,
-                (BATCH_SIZE,)
+                (BATCH_SIZE,),
             ).fetchall()
 
             for row_id, payload in rows:
