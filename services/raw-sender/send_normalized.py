@@ -84,6 +84,9 @@ def normalize_env(row):
         "event_time": payload["time"],
         "edge_ingest_time": row["received_at"],
 
+        "network_time": rx.get("nsTime"),
+        "gateway_time": rx.get("gwTime"),
+
         "deduplication_id": payload["deduplicationId"],
 
         "tenant_id": payload["deviceInfo"]["tenantId"],
@@ -117,9 +120,6 @@ def normalize_env(row):
         "snr": rx.get("snr"),
         "crc_status": rx.get("crcStatus"),
 
-        "network_time": rx.get("nsTime"),
-        "gateway_time": rx.get("gwTime"),
-
         "frequency": payload["txInfo"]["frequency"],
         "bandwidth": payload["txInfo"]["modulation"]["lora"]["bandwidth"],
         "spreading_factor": payload["txInfo"]["modulation"]["lora"]["spreadingFactor"],
@@ -141,6 +141,9 @@ def normalize_scale(row):
 
         "event_time": payload["time"],
         "edge_ingest_time": row["received_at"],
+
+        "network_time": rx.get("nsTime"),
+        "gateway_time": rx.get("gwTime"),
 
         "deduplication_id": payload["deduplicationId"],
 
@@ -172,9 +175,6 @@ def normalize_scale(row):
         "snr": rx.get("snr"),
         "crc_status": rx.get("crcStatus"),
 
-        "network_time": rx.get("nsTime"),
-        "gateway_time": rx.get("gwTime"),
-
         "frequency": payload["txInfo"]["frequency"],
         "bandwidth": payload["txInfo"]["modulation"]["lora"]["bandwidth"],
         "spreading_factor": payload["txInfo"]["modulation"]["lora"]["spreadingFactor"],
@@ -196,6 +196,7 @@ def process_db(db_path, normalizer):
         SELECT id, received_at, payload
         FROM raw_logs
         WHERE uploaded = 0
+          AND received_at >= datetime('now', '-5 minutes')
         ORDER BY received_at
         LIMIT ?
         """,
@@ -230,7 +231,7 @@ def process_db(db_path, normalizer):
             conn.commit()
         else:
             print("upload failed:", r.status_code, r.text)
-            break
+            continue
 
     conn.close()
 
