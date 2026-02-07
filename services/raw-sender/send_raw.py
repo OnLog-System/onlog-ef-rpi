@@ -12,8 +12,8 @@ from datetime import datetime, timezone
 SENSOR_DB_PATH = os.getenv("SENSOR_DB_PATH", "/data/sensor_logs.db")
 SCALE_DB_PATH  = os.getenv("SCALE_DB_PATH", "/data/scale_logs.db")
 
-API_URL = os.getenv("API_URL")
-API_KEY = os.getenv("API_KEY")
+API_URL = os.getenv("API_URL", "http://43.201.233.103/api/ingest/normalized")
+API_KEY = os.getenv("API_KEY", "changeme")
 
 BATCH_SIZE = int(os.getenv("BATCH_SIZE", "20"))
 SLEEP_SEC  = int(os.getenv("SLEEP_SEC", "5"))
@@ -21,37 +21,48 @@ TIMEOUT    = 5
 
 
 # ===============================
-# Utils
-# ===============================
-def utc_now():
-    return datetime.now(timezone.utc).isoformat()
-
-
-# ===============================
-# Decoder
+# Decoder (Java parity)
 # ===============================
 def decode_lht65n(data_b64: str):
-    raw = base64.b64decode(data_b64)
+    if not data_b64:
+        return None
 
-    temperature = ((raw[0] << 8) | raw[1]) / 100
-    humidity    = ((raw[2] << 8) | raw[3]) / 100
-    battery_mv  = (raw[4] << 8) | raw[5]
+    try:
+        data = base64.b64decode(data_b64)
+    except Exception:
+        return None
 
-    if battery_mv >= 3000:
-        status = "GOOD"
-    elif battery_mv >= 2700:
-        status = "OK"
-    elif battery_mv >= 2400:
-        status = "LOW"
-    else:
-        status = "ULTRA_LOW"
+    if len(data) < 6:
+        return None
 
-    return temperature, humidity, battery_mv, status
+    bat_raw = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF)
+    status_bits = (bat_raw >> 14) & 0b11
+    battery_mv = bat_raw & 0x3FFF
+
+    battery_status = {
+        0b00: "ULTRA_LOW",
+        0b01: "LOW",
+        0b10: "OK",
+        0b11: "GOOD",
+    }.get(status_bits, "UNKNOWN")
+
+    temp_raw = (data[2] << 8) | data[3]
+    if temp_raw & 0x8000:
+        temp_raw -= 0x10000
+    temperature = temp_raw / 100.0
+
+    hum_raw = ((data[4] & 0xFF) << 8) | (data[5] & 0xFF)
+    humidity = hum_raw / 10.0
+
+    return temperature, humidity, battery_mv, battery_status
 
 
 def decode_scale(data_b64: str):
-    raw = base64.b64decode(data_b64)
-    return raw[0]
+    try:
+        data = base64.b64decode(data_b64)
+        return data[0]
+    except Exception:
+        return None
 
 
 # ===============================
@@ -61,7 +72,11 @@ def normalize_env(row):
     payload = json.loads(row["payload"])
     rx = payload["rxInfo"][0]
 
-    temp, hum, bat, bat_status = decode_lht65n(payload["data"])
+    decoded = decode_lht65n(payload.get("data"))
+    if decoded is None:
+        return None
+
+    temperature, humidity, battery_mv, battery_status = decoded
 
     return {
         "type": "env",
@@ -85,10 +100,10 @@ def normalize_env(row):
         "dev_addr": payload.get("devAddr"),
         "device_class": payload["deviceInfo"]["deviceClassEnabled"],
 
-        "temperature": temp,
-        "humidity": hum,
-        "battery_mv": bat,
-        "battery_status": bat_status,
+        "temperature": temperature,
+        "humidity": humidity,
+        "battery_mv": battery_mv,
+        "battery_status": battery_status,
 
         "f_cnt": payload.get("fCnt"),
         "f_port": payload.get("fPort"),
@@ -117,7 +132,9 @@ def normalize_scale(row):
     payload = json.loads(row["payload"])
     rx = payload["rxInfo"][0]
 
-    weight = decode_scale(payload["data"])
+    weight = decode_scale(payload.get("data"))
+    if weight is None:
+        return None
 
     return {
         "type": "scale",
@@ -187,6 +204,13 @@ def process_db(db_path, normalizer):
 
     for row in rows:
         event = normalizer(row)
+        if event is None:
+            cur.execute(
+                "UPDATE raw_logs SET uploaded = 1 WHERE id = ?",
+                (row["id"],),
+            )
+            conn.commit()
+            continue
 
         r = requests.post(
             API_URL,
