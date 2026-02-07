@@ -157,6 +157,23 @@ services:
     networks:
       - default
 
+  # 7. Raw Data Sender (SQLite → Cloud API)
+  raw-sender:
+    build: ./raw-sender
+    container_name: raw-sender
+    restart: unless-stopped
+    environment:
+      SENSOR_DB_PATH: /data/sensor_logs.db
+      SCALE_DB_PATH: /data/scale_logs.db
+      API_URL: http://43.201.233.103/api/ingest/normalized
+      API_KEY: changeme
+      BATCH_SIZE: "20"
+      SLEEP_SEC: "5"
+    volumes:
+      - /mnt/nvme/infra/sqlite:/data
+    depends_on:
+      - mqtt-logger
+
 volumes:
   postgresqldata:
   redisdata:
