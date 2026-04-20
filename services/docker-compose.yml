@@ -144,7 +144,7 @@ services:
       - /mnt/nvme/infra/redis-metrics:/data
 
   # 6. MSK Producer (Kafka 프로듀서)
-  msk-producer:
+  msk-producer: 
     build:
       context: ./msk-producer
     container_name: onlog-msk-producer
@@ -167,8 +167,6 @@ services:
       SCALE_DB_PATH: /data/scale_logs.db
       API_URL: http://43.201.233.103/api/ingest/normalized
       API_KEY: changeme
-      BATCH_SIZE: "20"
-      SLEEP_SEC: "5"
     volumes:
       - /mnt/nvme/infra/sqlite:/data
     depends_on:
