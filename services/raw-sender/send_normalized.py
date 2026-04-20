@@ -187,7 +187,7 @@ def process_one(db_path, normalizer, cursor_path):
 
     cursor = load_cursor(cursor_path)
 
-    row = cur.execute(
+    rows = cur.execute(
         """
         SELECT id, received_at, payload
         FROM raw_logs
@@ -196,42 +196,44 @@ def process_one(db_path, normalizer, cursor_path):
         LIMIT 100
         """,
         (cursor,),
-    ).fetchone()
+    ).fetchall()
 
-    if row is None:
+    if not rows:
         conn.close()
         return False
 
-    event = normalizer(row)
+    last_success_id = cursor
 
-    if event is None:
-        save_cursor(cursor_path, row["id"])
-        conn.close()
-        return True
+    for row in rows:
+        event = normalizer(row)
 
-    try:
-        r = requests.post(
-            API_URL,
-            headers={
-                "Content-Type": "application/json",
-                "X-API-Key": API_KEY,
-            },
-            json=event,
-            timeout=TIMEOUT,
-        )
-    except Exception as e:
-        print("request error:", e)
-        conn.close()
-        return False
+        if event is None:
+            last_success_id = row["id"]
+            continue
 
-    if r.status_code == 200:
-        save_cursor(cursor_path, row["id"])
-        conn.close()
-        return True
-    else:
-        print("upload failed:", r.status_code, r.text)
-        conn.close()
-        return False
+        try:
+            r = requests.post(
+                API_URL,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-API-Key": API_KEY,
+                },
+                json=event,
+                timeout=TIMEOUT,
+            )
+        except Exception as e:
+            print("request error:", e)
+            break
+
+        if r.status_code == 200:
+            last_success_id = row["id"]
+        else:
+            print("upload failed:", r.status_code)
+            break
+
+    save_cursor(cursor_path, last_success_id)
+    conn.close()
+    return True
 
 
 def main():
