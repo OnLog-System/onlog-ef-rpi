@@ -4,7 +4,6 @@ import time
 import json
 import base64
 import os
-from datetime import datetime, timezone
 
 # ===============================
 # Env / Config
@@ -12,12 +11,29 @@ from datetime import datetime, timezone
 SENSOR_DB_PATH = os.getenv("SENSOR_DB_PATH", "/data/sensor_logs.db")
 SCALE_DB_PATH  = os.getenv("SCALE_DB_PATH", "/data/scale_logs.db")
 
-API_URL = os.getenv("API_URL", "http://43.201.233.103/api/ingest/normalized")
-API_KEY = os.getenv("API_KEY", "changeme")
+API_URL = os.getenv("API_URL")
+API_KEY = os.getenv("API_KEY")
 
-BATCH_SIZE = int(os.getenv("BATCH_SIZE", "20"))
-SLEEP_SEC  = int(os.getenv("SLEEP_SEC", "5"))
-TIMEOUT    = 5
+CURSOR_ENV_PATH   = "/data/cursor_env.txt"
+CURSOR_SCALE_PATH = "/data/cursor_scale.txt"
+
+TIMEOUT = 5
+IDLE_SLEEP = 1
+
+
+# ===============================
+# Cursor
+# ===============================
+def load_cursor(path):
+    if not os.path.exists(path):
+        return 0
+    with open(path, "r") as f:
+        return int(f.read().strip())
+
+
+def save_cursor(path, value):
+    with open(path, "w") as f:
+        f.write(str(value))
 
 
 # ===============================
@@ -66,7 +82,7 @@ def decode_scale(data_b64: str):
 
 
 # ===============================
-# Normalizers
+# Normalize
 # ===============================
 def normalize_env(row):
     payload = json.loads(row["payload"])
@@ -80,46 +96,35 @@ def normalize_env(row):
 
     return {
         "type": "env",
-
         "event_time": payload["time"],
         "edge_ingest_time": row["received_at"],
-
         "network_time": rx.get("nsTime"),
         "gateway_time": rx.get("gwTime"),
-
         "deduplication_id": payload["deduplicationId"],
-
         "tenant_id": payload["deviceInfo"]["tenantId"],
         "tenant_name": payload["deviceInfo"]["tenantName"],
-
         "application_id": payload["deviceInfo"]["applicationId"],
         "application_name": payload["deviceInfo"]["applicationName"],
-
         "device_profile_id": payload["deviceInfo"]["deviceProfileId"],
         "device_profile_name": payload["deviceInfo"]["deviceProfileName"],
-
         "device_name": payload["deviceInfo"]["deviceName"],
         "dev_eui": payload["deviceInfo"]["devEui"],
         "dev_addr": payload.get("devAddr"),
         "device_class": payload["deviceInfo"]["deviceClassEnabled"],
-
         "temperature": temperature,
         "humidity": humidity,
         "battery_mv": battery_mv,
         "battery_status": battery_status,
-
         "f_cnt": payload.get("fCnt"),
         "f_port": payload.get("fPort"),
         "adr": payload.get("adr"),
         "dr": payload.get("dr"),
         "confirmed": payload.get("confirmed"),
-
         "gateway_id": rx.get("gatewayId"),
         "uplink_id": rx.get("uplinkId"),
         "rssi": rx.get("rssi"),
         "snr": rx.get("snr"),
         "crc_status": rx.get("crcStatus"),
-
         "frequency": payload["txInfo"]["frequency"],
         "bandwidth": payload["txInfo"]["modulation"]["lora"]["bandwidth"],
         "spreading_factor": payload["txInfo"]["modulation"]["lora"]["spreadingFactor"],
@@ -138,43 +143,32 @@ def normalize_scale(row):
 
     return {
         "type": "scale",
-
         "event_time": payload["time"],
         "edge_ingest_time": row["received_at"],
-
         "network_time": rx.get("nsTime"),
         "gateway_time": rx.get("gwTime"),
-
         "deduplication_id": payload["deduplicationId"],
-
         "tenant_id": payload["deviceInfo"]["tenantId"],
         "tenant_name": payload["deviceInfo"]["tenantName"],
-
         "application_id": payload["deviceInfo"]["applicationId"],
         "application_name": payload["deviceInfo"]["applicationName"],
-
         "device_profile_id": payload["deviceInfo"]["deviceProfileId"],
         "device_profile_name": payload["deviceInfo"]["deviceProfileName"],
-
         "device_name": payload["deviceInfo"]["deviceName"],
         "dev_eui": payload["deviceInfo"]["devEui"],
         "dev_addr": payload.get("devAddr"),
         "device_class": payload["deviceInfo"]["deviceClassEnabled"],
-
         "weight": weight,
-
         "f_cnt": payload.get("fCnt"),
         "f_port": payload.get("fPort"),
         "adr": payload.get("adr"),
         "dr": payload.get("dr"),
         "confirmed": payload.get("confirmed"),
-
         "gateway_id": rx.get("gatewayId"),
         "uplink_id": rx.get("uplinkId"),
         "rssi": rx.get("rssi"),
         "snr": rx.get("snr"),
         "crc_status": rx.get("crcStatus"),
-
         "frequency": payload["txInfo"]["frequency"],
         "bandwidth": payload["txInfo"]["modulation"]["lora"]["bandwidth"],
         "spreading_factor": payload["txInfo"]["modulation"]["lora"]["spreadingFactor"],
@@ -184,35 +178,38 @@ def normalize_scale(row):
 
 
 # ===============================
-# Sender Core
+# Core loop
 # ===============================
-def process_db(db_path, normalizer):
+def process_one(db_path, normalizer, cursor_path):
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    rows = cur.execute(
+    cursor = load_cursor(cursor_path)
+
+    row = cur.execute(
         """
         SELECT id, received_at, payload
         FROM raw_logs
-        WHERE uploaded = 0
-          AND received_at >= datetime('now', '-5 minutes')
-        ORDER BY received_at
-        LIMIT ?
+        WHERE id > ?
+        ORDER BY id
+        LIMIT 100
         """,
-        (BATCH_SIZE,),
-    ).fetchall()
+        (cursor,),
+    ).fetchone()
 
-    for row in rows:
-        event = normalizer(row)
-        if event is None:
-            cur.execute(
-                "UPDATE raw_logs SET uploaded = 1 WHERE id = ?",
-                (row["id"],),
-            )
-            conn.commit()
-            continue
+    if row is None:
+        conn.close()
+        return False
 
+    event = normalizer(row)
+
+    if event is None:
+        save_cursor(cursor_path, row["id"])
+        conn.close()
+        return True
+
+    try:
         r = requests.post(
             API_URL,
             headers={
@@ -222,32 +219,35 @@ def process_db(db_path, normalizer):
             json=event,
             timeout=TIMEOUT,
         )
+    except Exception as e:
+        print("request error:", e)
+        conn.close()
+        return False
 
-        if r.status_code == 200:
-            cur.execute(
-                "UPDATE raw_logs SET uploaded = 1 WHERE id = ?",
-                (row["id"],),
-            )
-            conn.commit()
-        else:
-            print("upload failed:", r.status_code, r.text)
-            continue
-
-    conn.close()
+    if r.status_code == 200:
+        save_cursor(cursor_path, row["id"])
+        conn.close()
+        return True
+    else:
+        print("upload failed:", r.status_code, r.text)
+        conn.close()
+        return False
 
 
-# ===============================
-# Main Loop
-# ===============================
 def main():
-    while True:
-        try:
-            process_db(SENSOR_DB_PATH, normalize_env)
-            process_db(SCALE_DB_PATH, normalize_scale)
-        except Exception as e:
-            print("sender error:", e)
+    print("sender started")
 
-        time.sleep(SLEEP_SEC)
+    while True:
+        progressed = False
+
+        if process_one(SENSOR_DB_PATH, normalize_env, CURSOR_ENV_PATH):
+            progressed = True
+
+        if process_one(SCALE_DB_PATH, normalize_scale, CURSOR_SCALE_PATH):
+            progressed = True
+
+        if not progressed:
+            time.sleep(IDLE_SLEEP)
 
 
 if __name__ == "__main__":
