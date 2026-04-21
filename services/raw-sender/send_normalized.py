@@ -17,8 +17,9 @@ API_KEY = os.getenv("API_KEY")
 CURSOR_ENV_PATH   = "/data/cursor_env.txt"
 CURSOR_SCALE_PATH = "/data/cursor_scale.txt"
 
-TIMEOUT = 5
+TIMEOUT = 30
 IDLE_SLEEP = 1
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "500"))
 
 
 # ===============================
@@ -44,7 +45,7 @@ def decode_lht65n(data_b64):
         return None
     try:
         data = base64.b64decode(data_b64)
-    except:
+    except Exception:
         return None
     if len(data) < 6:
         return None
@@ -75,7 +76,7 @@ def decode_scale(data_b64):
     try:
         data = base64.b64decode(data_b64)
         return data[0]
-    except:
+    except Exception:
         return None
 
 
@@ -91,12 +92,14 @@ def normalize_env(row):
             return None
 
         rx = rx_list[0]
-
         decoded = decode_lht65n(payload.get("data"))
         if decoded is None:
             return None
 
         temperature, humidity, battery_mv, battery_status = decoded
+        device_info = payload.get("deviceInfo", {})
+        tx_info = payload.get("txInfo", {})
+        lora = tx_info.get("modulation", {}).get("lora", {})
 
         return {
             "type": "env",
@@ -105,16 +108,16 @@ def normalize_env(row):
             "network_time": rx.get("nsTime"),
             "gateway_time": rx.get("gwTime"),
             "deduplication_id": payload.get("deduplicationId"),
-            "tenant_id": payload["deviceInfo"]["tenantId"],
-            "tenant_name": payload["deviceInfo"]["tenantName"],
-            "application_id": payload["deviceInfo"]["applicationId"],
-            "application_name": payload["deviceInfo"]["applicationName"],
-            "device_profile_id": payload["deviceInfo"]["deviceProfileId"],
-            "device_profile_name": payload["deviceInfo"]["deviceProfileName"],
-            "device_name": payload["deviceInfo"]["deviceName"],
-            "dev_eui": payload["deviceInfo"]["devEui"],
+            "tenant_id": device_info.get("tenantId"),
+            "tenant_name": device_info.get("tenantName"),
+            "application_id": device_info.get("applicationId"),
+            "application_name": device_info.get("applicationName"),
+            "device_profile_id": device_info.get("deviceProfileId"),
+            "device_profile_name": device_info.get("deviceProfileName"),
+            "device_name": device_info.get("deviceName"),
+            "dev_eui": device_info.get("devEui"),
             "dev_addr": payload.get("devAddr"),
-            "device_class": payload["deviceInfo"]["deviceClassEnabled"],
+            "device_class": device_info.get("deviceClassEnabled"),
             "temperature": temperature,
             "humidity": humidity,
             "battery_mv": battery_mv,
@@ -129,10 +132,10 @@ def normalize_env(row):
             "rssi": rx.get("rssi"),
             "snr": rx.get("snr"),
             "crc_status": rx.get("crcStatus"),
-            "frequency": payload["txInfo"]["frequency"],
-            "bandwidth": payload["txInfo"]["modulation"]["lora"]["bandwidth"],
-            "spreading_factor": payload["txInfo"]["modulation"]["lora"]["spreadingFactor"],
-            "code_rate": payload["txInfo"]["modulation"]["lora"]["codeRate"],
+            "frequency": tx_info.get("frequency"),
+            "bandwidth": lora.get("bandwidth"),
+            "spreading_factor": lora.get("spreadingFactor"),
+            "code_rate": lora.get("codeRate"),
             "region_config_id": payload.get("regionConfigId"),
         }
 
@@ -150,10 +153,13 @@ def normalize_scale(row):
             return None
 
         rx = rx_list[0]
-
         weight = decode_scale(payload.get("data"))
         if weight is None:
             return None
+
+        device_info = payload.get("deviceInfo", {})
+        tx_info = payload.get("txInfo", {})
+        lora = tx_info.get("modulation", {}).get("lora", {})
 
         return {
             "type": "scale",
@@ -162,16 +168,16 @@ def normalize_scale(row):
             "network_time": rx.get("nsTime"),
             "gateway_time": rx.get("gwTime"),
             "deduplication_id": payload.get("deduplicationId"),
-            "tenant_id": payload["deviceInfo"]["tenantId"],
-            "tenant_name": payload["deviceInfo"]["tenantName"],
-            "application_id": payload["deviceInfo"]["applicationId"],
-            "application_name": payload["deviceInfo"]["applicationName"],
-            "device_profile_id": payload["deviceInfo"]["deviceProfileId"],
-            "device_profile_name": payload["deviceInfo"]["deviceProfileName"],
-            "device_name": payload["deviceInfo"]["deviceName"],
-            "dev_eui": payload["deviceInfo"]["devEui"],
+            "tenant_id": device_info.get("tenantId"),
+            "tenant_name": device_info.get("tenantName"),
+            "application_id": device_info.get("applicationId"),
+            "application_name": device_info.get("applicationName"),
+            "device_profile_id": device_info.get("deviceProfileId"),
+            "device_profile_name": device_info.get("deviceProfileName"),
+            "device_name": device_info.get("deviceName"),
+            "dev_eui": device_info.get("devEui"),
             "dev_addr": payload.get("devAddr"),
-            "device_class": payload["deviceInfo"]["deviceClassEnabled"],
+            "device_class": device_info.get("deviceClassEnabled"),
             "weight": weight,
             "f_cnt": payload.get("fCnt"),
             "f_port": payload.get("fPort"),
@@ -183,10 +189,10 @@ def normalize_scale(row):
             "rssi": rx.get("rssi"),
             "snr": rx.get("snr"),
             "crc_status": rx.get("crcStatus"),
-            "frequency": payload["txInfo"]["frequency"],
-            "bandwidth": payload["txInfo"]["modulation"]["lora"]["bandwidth"],
-            "spreading_factor": payload["txInfo"]["modulation"]["lora"]["spreadingFactor"],
-            "code_rate": payload["txInfo"]["modulation"]["lora"]["codeRate"],
+            "frequency": tx_info.get("frequency"),
+            "bandwidth": lora.get("bandwidth"),
+            "spreading_factor": lora.get("spreadingFactor"),
+            "code_rate": lora.get("codeRate"),
             "region_config_id": payload.get("regionConfigId"),
         }
 
@@ -212,7 +218,7 @@ def normalize_event(row):
             "application_name": device_info.get("applicationName"),
             "device_name": device_info.get("deviceName"),
             "dev_eui": device_info.get("devEui"),
-            "payload": payload
+            "payload": payload,
         }
 
     except Exception as e:
@@ -221,9 +227,9 @@ def normalize_event(row):
 
 
 # ===============================
-# Core loop
+# Batch sender
 # ===============================
-def process_one(db_path, cursor_path):
+def process_batch(db_path, cursor_path):
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -236,52 +242,68 @@ def process_one(db_path, cursor_path):
         FROM raw_logs
         WHERE id > ?
         ORDER BY id
-        LIMIT 100
+        LIMIT ?
         """,
-        (cursor,),
+        (cursor, BATCH_SIZE),
     ).fetchall()
 
     if not rows:
         conn.close()
         return False
 
-    last_success_id = cursor
+    events = []
+    last_row_id = cursor
 
     for row in rows:
         topic = row["topic"]
 
         if topic.endswith("/event/up"):
-            event = normalize_env(row)
+            # scale DB도 /event/up일 수 있으므로 payload 특성으로 구분
+            payload = json.loads(row["payload"])
+            app_name = payload.get("deviceInfo", {}).get("applicationName", "")
+            if "scale" in app_name.lower():
+                event = normalize_scale(row)
+            else:
+                event = normalize_env(row)
         else:
             event = normalize_event(row)
 
+        last_row_id = row["id"]
+
         if event is None:
-            last_success_id = row["id"]
             continue
 
-        try:
-            r = requests.post(
-                API_URL,
-                headers={
-                    "Content-Type": "application/json",
-                    "X-API-Key": API_KEY,
-                },
-                json=event,
-                timeout=TIMEOUT,
-            )
-        except Exception as e:
-            print("request error:", e)
-            break
+        events.append(event)
 
-        if r.status_code == 200:
-            last_success_id = row["id"]
-        else:
-            print("upload failed:", r.status_code)
-            break
+    # 유효 이벤트가 하나도 없어도 cursor는 전진
+    if not events:
+        save_cursor(cursor_path, last_row_id)
+        conn.close()
+        return True
 
-    save_cursor(cursor_path, last_success_id)
+    try:
+        r = requests.post(
+            API_URL,
+            headers={
+                "Content-Type": "application/json",
+                "X-API-Key": API_KEY,
+            },
+            json=events,
+            timeout=TIMEOUT,
+        )
+    except Exception as e:
+        print("request error:", e)
+        conn.close()
+        return False
+
+    if r.status_code == 200:
+        save_cursor(cursor_path, last_row_id)
+        conn.close()
+        return True
+
+    print("upload failed:", r.status_code, r.text)
     conn.close()
-    return True
+    return False
 
 
 def main():
@@ -290,10 +312,10 @@ def main():
     while True:
         progressed = False
 
-        if process_one(SENSOR_DB_PATH, CURSOR_ENV_PATH):
+        if process_batch(SENSOR_DB_PATH, CURSOR_ENV_PATH):
             progressed = True
 
-        if process_one(SCALE_DB_PATH, CURSOR_SCALE_PATH):
+        if process_batch(SCALE_DB_PATH, CURSOR_SCALE_PATH):
             progressed = True
 
         if not progressed:
