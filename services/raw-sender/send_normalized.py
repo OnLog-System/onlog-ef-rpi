@@ -17,9 +17,9 @@ API_KEY = os.getenv("API_KEY")
 CURSOR_ENV_PATH   = "/data/cursor_env.txt"
 CURSOR_SCALE_PATH = "/data/cursor_scale.txt"
 
-TIMEOUT = 30
-IDLE_SLEEP = 1
-BATCH_SIZE = int(os.getenv("BATCH_SIZE", "500"))
+TIMEOUT = 10
+IDLE_SLEEP = 0.2
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "20"))
 
 
 # ===============================
