@@ -165,7 +165,7 @@ services:
     environment:
       SENSOR_DB_PATH: /data/sensor_logs.db
       SCALE_DB_PATH: /data/scale_logs.db
-      API_URL: https://api.factorybridge.co.kr/api/ingest/normalized
+      API_URL: https://api.tero.kr/api/ingest/normalized
       API_KEY: changeme
     volumes:
       - /mnt/nvme/infra/sqlite:/data
